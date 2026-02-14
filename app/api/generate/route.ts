@@ -1,21 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getOrCreateUser, saveGeneration } from "@/lib/supabase";
+import { s3, BUCKET } from "@/lib/s3";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent";
-
-const s3 = new S3Client({
-  region: process.env.AWS_REGION!,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
-
-const BUCKET = process.env.AWS_S3_BUCKET!;
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,18 +89,15 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    const imageUrl = `https://${BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
-
     await saveGeneration({
       userId: user.id,
       prompt,
-      resultUrl: imageUrl,
+      resultUrl: key,  // Store S3 key, not full URL
     });
 
     return NextResponse.json({
       success: true,
       image: imageData,
-      imageUrl,
     });
   } catch (error) {
     console.error("Generation error:", error);
