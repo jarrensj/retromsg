@@ -14,6 +14,7 @@ type Generation = {
 export default function Home() {
   const { isSignedIn } = useAuth();
   const [prompt, setPrompt] = useState("");
+  const [mode, setMode] = useState<"image" | "video">("image");
   const [image, setImage] = useState<{ mimeType: string; data: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -56,7 +57,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, mode }),
       });
 
       const data = await res.json();
@@ -84,6 +85,36 @@ export default function Home() {
       <h1>retroAI</h1>
 
       <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            onClick={() => setMode("image")}
+            style={{
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "4px 0 0 4px",
+              backgroundColor: mode === "image" ? "#2563eb" : "#e5e7eb",
+              color: mode === "image" ? "white" : "#374151",
+              cursor: "pointer",
+            }}
+          >
+            Image
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("video")}
+            style={{
+              padding: "8px 16px",
+              border: "none",
+              borderRadius: "0 4px 4px 0",
+              backgroundColor: mode === "video" ? "#2563eb" : "#e5e7eb",
+              color: mode === "video" ? "white" : "#374151",
+              cursor: "pointer",
+            }}
+          >
+            Video
+          </button>
+        </div>
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -95,17 +126,17 @@ export default function Home() {
         <br />
         <button
           type="submit"
-          disabled={loading || !prompt.trim()}
+          disabled={loading || !prompt.trim() || mode === "video"}
           style={{
-            backgroundColor: "#2563eb",
+            backgroundColor: mode === "video" ? "#9ca3af" : "#2563eb",
             color: "white",
             padding: "8px 16px",
             border: "none",
             borderRadius: 4,
-            cursor: "pointer",
+            cursor: mode === "video" ? "not-allowed" : "pointer",
           }}
         >
-          {loading ? "Generating..." : "Generate"}
+          {mode === "video" ? "Coming soon" : loading ? "Generating..." : "Generate"}
         </button>
       </form>
 
