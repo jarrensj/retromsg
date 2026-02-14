@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -28,4 +28,50 @@ export async function getOrCreateUser(clerkId: string, email?: string) {
   }
 
   return newUser;
+}
+
+// Save a generation record
+export async function saveGeneration({
+  userId,
+  prompt,
+  sourceUrl,
+  resultUrl,
+}: {
+  userId: string;
+  prompt: string;
+  sourceUrl?: string;
+  resultUrl: string;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from("generations")
+    .insert({
+      user_id: userId,
+      prompt,
+      source_url: sourceUrl,
+      result_url: resultUrl,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to save generation: ${error.message}`);
+  }
+
+  return data;
+}
+
+// Get user's generations
+export async function getUserGenerations(userId: string, limit = 50) {
+  const { data, error } = await supabaseAdmin
+    .from("generations")
+    .select("id, prompt, source_url, result_url, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to fetch generations: ${error.message}`);
+  }
+
+  return data;
 }
