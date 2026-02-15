@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Special_Elite } from "next/font/google";
 import {
   ClerkProvider,
   SignInButton,
@@ -11,13 +11,8 @@ import {
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const specialElite = Special_Elite({
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -34,9 +29,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
+        <body className={specialElite.className}>
           <header className="flex justify-end items-center p-4 gap-4">
             <SignedOut>
               <SignInButton />
