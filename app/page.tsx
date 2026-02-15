@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
+import { presets } from "@/lib/presets";
 
 type Generation = {
   id: string;
@@ -115,10 +116,35 @@ export default function Home() {
             Video
           </button>
         </div>
+        <select
+          onChange={(e) => {
+            const preset = presets.find((p) => p.id === e.target.value);
+            if (preset) setPrompt(preset.prompt);
+          }}
+          style={{
+            width: "100%",
+            maxWidth: 400,
+            padding: 8,
+            marginBottom: 8,
+            border: "1px solid #ccc",
+            borderRadius: 4,
+          }}
+          disabled={loading}
+          defaultValue=""
+        >
+          <option value="" disabled>
+            Select a preset prompt...
+          </option>
+          {presets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.name}
+            </option>
+          ))}
+        </select>
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter prompt..."
+          placeholder="Enter prompt or select a preset above..."
           rows={3}
           style={{ width: "100%", maxWidth: 400, border: "1px solid #ccc", padding: 8 }}
           disabled={loading}
