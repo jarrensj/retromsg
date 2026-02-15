@@ -24,10 +24,7 @@ export default function Home() {
 
   const initializeUser = useCallback(async () => {
     try {
-      // Ensure user exists in Supabase
       await fetch("/api/user");
-
-      // Fetch their generations
       const genRes = await fetch("/api/generations");
       if (genRes.ok) {
         const genData = await genRes.json();
@@ -78,57 +75,50 @@ export default function Home() {
   }
 
   if (!isSignedIn) {
-    return <p>Sign in to generate</p>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
+        <h1 className="text-4xl md:text-6xl mb-4 text-[#d4af37]">retroAI</h1>
+        <p className="text-xl text-[#888] mb-8 max-w-md">
+          Create stunning vintage-style images and videos with AI
+        </p>
+        <p className="text-[#666]">Sign in to start creating</p>
+      </div>
+    );
   }
 
   return (
-    <div style={{ padding: 20, maxWidth: 800, margin: "0 auto" }}>
-      <h1>retroAI</h1>
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl md:text-4xl text-[#d4af37] mb-2">Create</h1>
+        <p className="text-[#888]">Generate vintage AI creations</p>
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
+      <form onSubmit={handleSubmit} className="card p-6 mb-8">
+        {/* Mode Toggle */}
+        <div className="flex justify-center mb-6">
           <button
             type="button"
             onClick={() => setMode("image")}
-            style={{
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "4px 0 0 4px",
-              backgroundColor: mode === "image" ? "#2563eb" : "#e5e7eb",
-              color: mode === "image" ? "white" : "#374151",
-              cursor: "pointer",
-            }}
+            className={`toggle-btn ${mode === "image" ? "active" : ""}`}
           >
             Image
           </button>
           <button
             type="button"
             onClick={() => setMode("video")}
-            style={{
-              padding: "8px 16px",
-              border: "none",
-              borderRadius: "0 4px 4px 0",
-              backgroundColor: mode === "video" ? "#2563eb" : "#e5e7eb",
-              color: mode === "video" ? "white" : "#374151",
-              cursor: "pointer",
-            }}
+            className={`toggle-btn ${mode === "video" ? "active" : ""}`}
           >
             Video
           </button>
         </div>
+
+        {/* Preset Selector */}
         <select
           onChange={(e) => {
             const preset = presets.find((p) => p.id === e.target.value);
             if (preset) setPrompt(preset.prompt);
           }}
-          style={{
-            width: "100%",
-            maxWidth: 400,
-            padding: 8,
-            marginBottom: 8,
-            border: "1px solid #ccc",
-            borderRadius: 4,
-          }}
+          className="w-full p-3 mb-4"
           disabled={loading}
           defaultValue=""
         >
@@ -141,95 +131,77 @@ export default function Home() {
             </option>
           ))}
         </select>
+
+        {/* Prompt Input */}
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter prompt or select a preset above..."
-          rows={3}
-          style={{ width: "100%", maxWidth: 400, border: "1px solid #ccc", padding: 8 }}
+          placeholder="Enter your prompt or select a preset above..."
+          rows={4}
+          className="w-full p-3 mb-4 resize-none"
           disabled={loading}
         />
-        <br />
+
+        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading || !prompt.trim() || mode === "video"}
-          style={{
-            backgroundColor: mode === "video" ? "#9ca3af" : "#2563eb",
-            color: "white",
-            padding: "8px 16px",
-            border: "none",
-            borderRadius: 4,
-            cursor: mode === "video" ? "not-allowed" : "pointer",
-          }}
+          className="btn-primary w-full"
         >
           {mode === "video" ? "Coming soon" : loading ? "Generating..." : "Generate"}
         </button>
       </form>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && (
+        <div className="card p-4 mb-8 border-red-500 text-red-400 text-center">
+          {error}
+        </div>
+      )}
 
       {image && (
-        <div style={{ marginTop: 20 }}>
-          <h3>Generated Image</h3>
+        <div className="card p-6 mb-8">
+          <h3 className="text-xl text-[#d4af37] mb-4 text-center">Generated Image</h3>
           <img
             src={`data:${image.mimeType};base64,${image.data}`}
             alt="Generated"
-            style={{ maxWidth: 500 }}
+            className="max-w-full mx-auto rounded"
           />
         </div>
       )}
 
-      <hr style={{ margin: "40px 0" }} />
-
-      <h2>Your Generations</h2>
-      {loadingGallery ? (
-        <p>Loading...</p>
-      ) : generations.length === 0 ? (
-        <p style={{ color: "#666" }}>No generations yet. Create your first one above!</p>
-      ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-            gap: 16,
-          }}
-        >
-          {generations.map((gen) => (
-            <div
-              key={gen.id}
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}
-            >
-              <img
-                src={gen.result_url}
-                alt={gen.prompt}
-                style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }}
-              />
-              <div style={{ padding: 8 }}>
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "#666",
-                    margin: 0,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                  title={gen.prompt}
-                >
-                  {gen.prompt}
-                </p>
-                <p style={{ fontSize: 10, color: "#999", margin: "4px 0 0" }}>
-                  {new Date(gen.created_at).toLocaleDateString()}
-                </p>
+      <div className="border-t border-[#333] pt-8">
+        <h2 className="text-2xl text-[#d4af37] mb-6 text-center">Your Creations</h2>
+        {loadingGallery ? (
+          <p className="text-center text-[#888]">Loading...</p>
+        ) : generations.length === 0 ? (
+          <p className="text-center text-[#666]">
+            No creations yet. Generate your first one above!
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {generations.map((gen) => (
+              <div key={gen.id} className="card">
+                <img
+                  src={gen.result_url}
+                  alt={gen.prompt}
+                  className="w-full aspect-square object-cover"
+                />
+                <div className="p-3">
+                  <p
+                    className="text-sm text-[#888] truncate"
+                    title={gen.prompt}
+                  >
+                    {gen.prompt}
+                  </p>
+                  <p className="text-xs text-[#666] mt-1">
+                    {new Date(gen.created_at).toLocaleDateString()}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
