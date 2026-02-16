@@ -36,11 +36,13 @@ export async function saveGeneration({
   prompt,
   sourceUrl,
   resultUrl,
+  type = "image",
 }: {
   userId: string;
   prompt: string;
   sourceUrl?: string;
   resultUrl: string;
+  type?: "image" | "video";
 }) {
   const { data, error } = await supabaseAdmin
     .from("generations")
@@ -49,6 +51,7 @@ export async function saveGeneration({
       prompt,
       source_url: sourceUrl,
       result_url: resultUrl,
+      type,
     })
     .select()
     .single();
@@ -64,7 +67,7 @@ export async function saveGeneration({
 export async function getUserGenerations(userId: string, limit = 50) {
   const { data, error } = await supabaseAdmin
     .from("generations")
-    .select("id, prompt, source_url, result_url, created_at")
+    .select("id, prompt, source_url, result_url, type, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);

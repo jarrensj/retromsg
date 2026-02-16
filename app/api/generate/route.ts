@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { readFile } from "fs/promises";
+import path from "path";
 import { getOrCreateUser, saveGeneration } from "@/lib/supabase";
 import { s3, BUCKET } from "@/lib/s3";
 
@@ -17,12 +19,40 @@ export async function POST(request: NextRequest) {
 
     const user = await getOrCreateUser(clerkId);
 
-    const { prompt } = await request.json();
+    const { prompt, referenceImage } = await request.json();
     if (!prompt) {
       return NextResponse.json(
         { error: "Prompt is required" },
         { status: 400 }
       );
+    }
+
+    // Build the parts array for Gemini
+    const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+
+    // If reference image provided, include it
+    if (referenceImage) {
+      try {
+        const imagePath = path.join(process.cwd(), "public", referenceImage);
+        const imageBuffer = await readFile(imagePath);
+        const base64Image = imageBuffer.toString("base64");
+        const mimeType = referenceImage.endsWith(".png") ? "image/png" : "image/jpeg";
+
+        parts.push({
+          inlineData: {
+            mimeType,
+            data: base64Image,
+          },
+        });
+        parts.push({
+          text: `Use this reference image as style inspiration. ${prompt}`,
+        });
+      } catch (err) {
+        console.error("Failed to read reference image:", err);
+        parts.push({ text: prompt });
+      }
+    } else {
+      parts.push({ text: prompt });
     }
 
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
@@ -33,11 +63,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         contents: [
           {
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
+            parts,
           },
         ],
         generationConfig: {
@@ -56,10 +82,10 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
-    const parts = data.candidates?.[0]?.content?.parts || [];
+    const responseParts = data.candidates?.[0]?.content?.parts || [];
 
     let imageData = null;
-    for (const part of parts) {
+    for (const part of responseParts) {
       if (part.inlineData) {
         imageData = {
           mimeType: part.inlineData.mimeType,
@@ -92,7 +118,9 @@ export async function POST(request: NextRequest) {
     await saveGeneration({
       userId: user.id,
       prompt,
-      resultUrl: key,  // Store S3 key, not full URL
+      sourceUrl: referenceImage || undefined,
+      resultUrl: key,
+      type: "image",
     });
 
     return NextResponse.json({

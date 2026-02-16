@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { presets } from "@/lib/presets";
+import { referenceImages } from "@/lib/reference-images";
 
 type Generation = {
   id: string;
   prompt: string;
   source_url: string | null;
   result_url: string;
+  type?: "image" | "video";
   created_at: string;
 };
 
@@ -16,7 +18,9 @@ export default function Home() {
   const { isSignedIn } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<"image" | "video">("image");
+  const [selectedRef, setSelectedRef] = useState<string | null>(null);
   const [image, setImage] = useState<{ mimeType: string; data: string } | null>(null);
+  const [video, setVideo] = useState<{ mimeType: string; data: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -50,12 +54,14 @@ export default function Home() {
     setLoading(true);
     setError("");
     setImage(null);
+    setVideo(null);
 
     try {
-      const res = await fetch("/api/generate", {
+      const endpoint = mode === "video" ? "/api/generate-video" : "/api/generate";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, mode }),
+        body: JSON.stringify({ prompt, referenceImage: selectedRef }),
       });
 
       const data = await res.json();
@@ -65,7 +71,11 @@ export default function Home() {
         return;
       }
 
-      setImage(data.image || null);
+      if (mode === "video") {
+        setVideo(data.video || null);
+      } else {
+        setImage(data.image || null);
+      }
       initializeUser();
     } catch {
       setError("Something went wrong");
@@ -112,6 +122,42 @@ export default function Home() {
           </button>
         </div>
 
+        {/* Reference Image Picker */}
+        <div className="mb-4">
+          <p className="text-sm text-[#888] mb-2">Reference image (optional):</p>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            <button
+              type="button"
+              onClick={() => setSelectedRef(null)}
+              className={`flex-shrink-0 w-16 h-16 rounded border-2 flex items-center justify-center text-xs ${
+                selectedRef === null
+                  ? "border-[#d4af37] bg-[#1a1a1a]"
+                  : "border-[#333] bg-[#111]"
+              }`}
+            >
+              None
+            </button>
+            {referenceImages.map((img) => (
+              <button
+                key={img.id}
+                type="button"
+                onClick={() => setSelectedRef(img.src)}
+                className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                  selectedRef === img.src
+                    ? "border-[#d4af37]"
+                    : "border-[#333]"
+                }`}
+              >
+                <img
+                  src={img.src}
+                  alt={img.name}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Preset Selector */}
         <select
           onChange={(e) => {
@@ -145,10 +191,16 @@ export default function Home() {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={loading || !prompt.trim() || mode === "video"}
+          disabled={loading || !prompt.trim()}
           className="btn-primary w-full"
         >
-          {mode === "video" ? "Coming soon" : loading ? "Generating..." : "Generate"}
+          {loading
+            ? mode === "video"
+              ? "Generating video (this may take a few minutes)..."
+              : "Generating..."
+            : mode === "video"
+            ? "Generate Video"
+            : "Generate Image"}
         </button>
       </form>
 
@@ -169,6 +221,19 @@ export default function Home() {
         </div>
       )}
 
+      {video && (
+        <div className="card p-6 mb-8">
+          <h3 className="text-xl text-[#d4af37] mb-4 text-center">Generated Video</h3>
+          <video
+            src={`data:${video.mimeType};base64,${video.data}`}
+            controls
+            autoPlay
+            loop
+            className="max-w-full mx-auto rounded"
+          />
+        </div>
+      )}
+
       <div className="border-t border-[#333] pt-8">
         <h2 className="text-2xl text-[#d4af37] mb-6 text-center">Your Creations</h2>
         {loadingGallery ? (
@@ -181,12 +246,26 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {generations.map((gen) => (
               <div key={gen.id} className="card">
-                <img
-                  src={gen.result_url}
-                  alt={gen.prompt}
-                  className="w-full aspect-square object-cover"
-                />
+                {gen.type === "video" ? (
+                  <video
+                    src={gen.result_url}
+                    className="w-full aspect-video object-cover"
+                    controls
+                    muted
+                  />
+                ) : (
+                  <img
+                    src={gen.result_url}
+                    alt={gen.prompt}
+                    className="w-full aspect-square object-cover"
+                  />
+                )}
                 <div className="p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#d4af37]">
+                      {gen.type === "video" ? "Video" : "Image"}
+                    </span>
+                  </div>
                   <p
                     className="text-sm text-[#888] truncate"
                     title={gen.prompt}
