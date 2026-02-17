@@ -29,6 +29,27 @@ export default function Home() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
+  // Download helper for base64 data
+  function downloadBase64(data: string, mimeType: string, filename: string) {
+    const link = document.createElement("a");
+    link.href = `data:${mimeType};base64,${data}`;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Download helper for URLs - uses API route to force download
+  function downloadUrl(url: string, filename: string) {
+    const downloadLink = `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+    const link = document.createElement("a");
+    link.href = downloadLink;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPasswordError("");
@@ -287,6 +308,12 @@ export default function Home() {
             alt="Generated"
             className="max-w-full mx-auto rounded"
           />
+          <button
+            onClick={() => downloadBase64(image.data, image.mimeType, `retro-image-${Date.now()}.png`)}
+            className="btn-primary w-full mt-4"
+          >
+            Download Image
+          </button>
         </div>
       )}
 
@@ -300,6 +327,12 @@ export default function Home() {
             loop
             className="max-w-full mx-auto rounded"
           />
+          <button
+            onClick={() => downloadBase64(video.data, video.mimeType, `retro-video-${Date.now()}.mp4`)}
+            className="btn-primary w-full mt-4"
+          >
+            Download Video
+          </button>
         </div>
       )}
 
@@ -330,10 +363,19 @@ export default function Home() {
                   />
                 )}
                 <div className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center justify-between mb-1">
                     <span className="text-xs px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#d4af37]">
                       {gen.type === "video" ? "Video" : "Image"}
                     </span>
+                    <button
+                      onClick={() => downloadUrl(
+                        gen.result_url,
+                        `retro-${gen.type || "image"}-${Date.now()}.${gen.type === "video" ? "mp4" : "png"}`
+                      )}
+                      className="text-xs px-2 py-0.5 rounded bg-[#333] text-[#d4af37] hover:bg-[#444] transition-colors"
+                    >
+                      Download
+                    </button>
                   </div>
                   <p
                     className="text-sm text-[#888] truncate"
