@@ -382,7 +382,7 @@ export default function Home() {
                         gen.result_url,
                         generateFilename(gen.type || "image")
                       )}
-                      className="text-xs px-2 py-0.5 rounded bg-[#333] text-[#d4af37] hover:bg-[#444] transition-colors"
+                      className="text-xs underline text-[#888] hover:text-[#d4af37] transition-colors"
                     >
                       Download
                     </button>
