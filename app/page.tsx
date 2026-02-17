@@ -286,11 +286,15 @@ export default function Home() {
         </button>
       </form>
 
-      {loading && mode === "video" && (
+      {loading && (
         <div className="card p-6 mb-8 text-center">
           <div className="inline-block w-12 h-12 border-4 border-[#333] border-t-[#d4af37] rounded-full animate-spin mb-4"></div>
-          <p className="text-[#d4af37]">Generating video...</p>
-          <p className="text-sm text-[#666] mt-2">This may take 1-2 minutes</p>
+          <p className="text-[#d4af37]">
+            {mode === "video" ? "Generating video..." : "Generating image..."}
+          </p>
+          {mode === "video" && (
+            <p className="text-sm text-[#666] mt-2">This may take 1-2 minutes</p>
+          )}
         </div>
       )}
 
