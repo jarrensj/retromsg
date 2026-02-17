@@ -29,6 +29,12 @@ export default function Home() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passwordError, setPasswordError] = useState("");
 
+  // Generate filename
+  function generateFilename(type: "image" | "video") {
+    const ext = type === "video" ? "mp4" : "png";
+    return `retromsg ${type}.${ext}`;
+  }
+
   // Download helper for base64 data
   function downloadBase64(data: string, mimeType: string, filename: string) {
     const link = document.createElement("a");
@@ -313,7 +319,7 @@ export default function Home() {
             className="max-w-full mx-auto rounded"
           />
           <button
-            onClick={() => downloadBase64(image.data, image.mimeType, `retro-image-${Date.now()}.png`)}
+            onClick={() => downloadBase64(image.data, image.mimeType, generateFilename("image"))}
             className="btn-primary w-full mt-4"
           >
             Download Image
@@ -332,7 +338,7 @@ export default function Home() {
             className="max-w-full mx-auto rounded"
           />
           <button
-            onClick={() => downloadBase64(video.data, video.mimeType, `retro-video-${Date.now()}.mp4`)}
+            onClick={() => downloadBase64(video.data, video.mimeType, generateFilename("video"))}
             className="btn-primary w-full mt-4"
           >
             Download Video
@@ -374,7 +380,7 @@ export default function Home() {
                     <button
                       onClick={() => downloadUrl(
                         gen.result_url,
-                        `retro-${gen.type || "image"}-${Date.now()}.${gen.type === "video" ? "mp4" : "png"}`
+                        generateFilename(gen.type || "image")
                       )}
                       className="text-xs px-2 py-0.5 rounded bg-[#333] text-[#d4af37] hover:bg-[#444] transition-colors"
                     >
