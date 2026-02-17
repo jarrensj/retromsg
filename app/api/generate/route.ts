@@ -7,6 +7,7 @@ import { getOrCreateUser, saveGeneration } from "@/lib/supabase";
 import { s3, BUCKET } from "@/lib/s3";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent";
 
@@ -19,7 +20,13 @@ export async function POST(request: NextRequest) {
 
     const user = await getOrCreateUser(clerkId);
 
-    const { prompt, referenceImage } = await request.json();
+    const { prompt, referenceImage, demoPassword } = await request.json();
+
+    // Verify demo password if set
+    if (DEMO_PASSWORD && demoPassword !== DEMO_PASSWORD) {
+      return NextResponse.json({ error: "Invalid demo password" }, { status: 401 });
+    }
+
     if (!prompt) {
       return NextResponse.json(
         { error: "Prompt is required" },

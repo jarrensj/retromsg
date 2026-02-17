@@ -25,6 +25,40 @@ export default function Home() {
   const [error, setError] = useState("");
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [loadingGallery, setLoadingGallery] = useState(true);
+  const [demoPassword, setDemoPassword] = useState("");
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+
+  async function handlePasswordSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setPasswordError("");
+
+    try {
+      const res = await fetch("/api/verify-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: demoPassword }),
+      });
+
+      if (res.ok) {
+        setIsUnlocked(true);
+        sessionStorage.setItem("demo_password", demoPassword);
+      } else {
+        setPasswordError("Incorrect password");
+      }
+    } catch {
+      setPasswordError("Something went wrong");
+    }
+  }
+
+  // Check if already unlocked this session
+  useEffect(() => {
+    const savedPassword = sessionStorage.getItem("demo_password");
+    if (savedPassword) {
+      setDemoPassword(savedPassword);
+      setIsUnlocked(true);
+    }
+  }, []);
 
   const initializeUser = useCallback(async () => {
     try {
@@ -61,7 +95,7 @@ export default function Home() {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, referenceImage: selectedRef }),
+        body: JSON.stringify({ prompt, referenceImage: selectedRef, demoPassword }),
       });
 
       const data = await res.json();
@@ -92,6 +126,33 @@ export default function Home() {
           Create stunning vintage-style images and videos with AI
         </p>
         <p className="text-[#666]">Sign in to start creating</p>
+      </div>
+    );
+  }
+
+  if (!isUnlocked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
+        <h1 className="text-4xl md:text-6xl mb-4 text-[#d4af37]">retroAI</h1>
+        <p className="text-xl text-[#888] mb-8 max-w-md">
+          Enter demo password to continue
+        </p>
+        <form onSubmit={handlePasswordSubmit} className="w-full max-w-xs">
+          <input
+            type="password"
+            value={demoPassword}
+            onChange={(e) => setDemoPassword(e.target.value)}
+            placeholder="Demo password"
+            className="w-full p-3 mb-4 text-center"
+            autoFocus
+          />
+          {passwordError && (
+            <p className="text-red-400 text-sm mb-4">{passwordError}</p>
+          )}
+          <button type="submit" className="btn-primary w-full">
+            Enter
+          </button>
+        </form>
       </div>
     );
   }
