@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { readFile } from "fs/promises";
 import path from "path";
-import { getOrCreateUser, saveGeneration } from "@/lib/supabase";
+import { getOrCreateUser, saveGeneration, deductCredits } from "@/lib/supabase";
 import { s3, BUCKET } from "@/lib/s3";
+import { CREDIT_COSTS } from "@/lib/stripe";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
@@ -36,6 +37,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Prompt is required" },
         { status: 400 }
+      );
+    }
+
+    // Check and deduct credits (7 credits for video)
+    const hasCredits = await deductCredits(clerkId, CREDIT_COSTS.video);
+    if (!hasCredits) {
+      return NextResponse.json(
+        { error: "Insufficient credits. Video generation requires 7 credits." },
+        { status: 402 }
       );
     }
 
