@@ -9,7 +9,7 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 export async function getOrCreateUser(clerkId: string, email?: string) {
   const { data: existingUser } = await supabaseAdmin
     .from("users")
-    .select("id, clerk_id, email")
+    .select("id, clerk_id, email, credits")
     .eq("clerk_id", clerkId)
     .single();
 
@@ -19,8 +19,8 @@ export async function getOrCreateUser(clerkId: string, email?: string) {
 
   const { data: newUser, error } = await supabaseAdmin
     .from("users")
-    .insert({ clerk_id: clerkId, email })
-    .select("id, clerk_id, email")
+    .insert({ clerk_id: clerkId, email, credits: 0 })
+    .select("id, clerk_id, email, credits")
     .single();
 
   if (error) {
@@ -28,6 +28,77 @@ export async function getOrCreateUser(clerkId: string, email?: string) {
   }
 
   return newUser;
+}
+
+// Get user credits
+export async function getUserCredits(clerkId: string): Promise<number> {
+  const { data } = await supabaseAdmin
+    .from("users")
+    .select("credits")
+    .eq("clerk_id", clerkId)
+    .single();
+
+  return data?.credits ?? 0;
+}
+
+// Add credits to user
+export async function addCredits(clerkId: string, amount: number) {
+  console.log(`addCredits called: clerkId=${clerkId}, amount=${amount}`);
+
+  const { data: user, error: selectError } = await supabaseAdmin
+    .from("users")
+    .select("credits")
+    .eq("clerk_id", clerkId)
+    .single();
+
+  if (selectError || !user) {
+    console.error(`User not found for clerkId: ${clerkId}`, selectError);
+    throw new Error(`User not found for clerkId: ${clerkId}`);
+  }
+
+  const currentCredits = user.credits ?? 0;
+  const newCredits = currentCredits + amount;
+
+  const { data: updated, error } = await supabaseAdmin
+    .from("users")
+    .update({ credits: newCredits })
+    .eq("clerk_id", clerkId)
+    .select("credits")
+    .single();
+
+  if (error || !updated) {
+    console.error(`Failed to update credits for clerkId: ${clerkId}`, error);
+    throw new Error(`Failed to add credits: ${error?.message || "No rows updated"}`);
+  }
+
+  console.log(`Credits updated: ${currentCredits} -> ${updated.credits}`);
+  return updated.credits;
+}
+
+// Deduct credits from user (returns false if insufficient)
+export async function deductCredits(clerkId: string, amount: number): Promise<boolean> {
+  const { data: user } = await supabaseAdmin
+    .from("users")
+    .select("credits")
+    .eq("clerk_id", clerkId)
+    .single();
+
+  const currentCredits = user?.credits ?? 0;
+
+  if (currentCredits < amount) {
+    return false;
+  }
+
+  const { error } = await supabaseAdmin
+    .from("users")
+    .update({ credits: currentCredits - amount })
+    .eq("clerk_id", clerkId);
+
+  if (error) {
+    throw new Error(`Failed to deduct credits: ${error.message}`);
+  }
+
+  return true;
 }
 
 // Save a generation record

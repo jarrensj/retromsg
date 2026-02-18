@@ -14,6 +14,12 @@ type Generation = {
   created_at: string;
 };
 
+const CREDIT_PACKAGES = [
+  { id: "starter", name: "Starter", price: 5, credits: 10 },
+  { id: "popular", name: "Popular", price: 10, credits: 25, popular: true },
+  { id: "pro", name: "Pro", price: 20, credits: 60 },
+];
+
 export default function Home() {
   const { isSignedIn } = useAuth();
   const [prompt, setPrompt] = useState("");
@@ -28,6 +34,8 @@ export default function Home() {
   const [demoPassword, setDemoPassword] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [showPricing, setShowPricing] = useState(false);
+  const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
 
   // Generate filename
   function generateFilename(type: "image" | "video") {
@@ -87,6 +95,29 @@ export default function Home() {
     }
   }, []);
 
+  const notifyCreditsUpdated = useCallback(() => {
+    window.dispatchEvent(new Event("creditsUpdated"));
+  }, []);
+
+  async function handlePurchase(packageId: string) {
+    setPurchaseLoading(packageId);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      console.error("Checkout failed");
+    } finally {
+      setPurchaseLoading(null);
+    }
+  }
+
   const initializeUser = useCallback(async () => {
     try {
       await fetch("/api/user");
@@ -108,6 +139,19 @@ export default function Home() {
     }
   }, [isSignedIn, initializeUser]);
 
+  // Handle Stripe redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") === "true") {
+      notifyCreditsUpdated();
+      // Clear the URL params
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (params.get("canceled") === "true") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [notifyCreditsUpdated]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!prompt.trim()) return;
@@ -128,7 +172,12 @@ export default function Home() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Generation failed");
+        if (res.status === 402) {
+          setError(data.error || "Insufficient credits");
+          setShowPricing(true);
+        } else {
+          setError(data.error || "Generation failed");
+        }
         return;
       }
 
@@ -138,6 +187,7 @@ export default function Home() {
         setImage(data.image || null);
       }
       initializeUser();
+      notifyCreditsUpdated();
     } catch {
       setError("Something went wrong");
     } finally {
@@ -186,6 +236,56 @@ export default function Home() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* Pricing Modal */}
+      {showPricing && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] border border-[#333] rounded-lg max-w-2xl w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl text-[#d4af37]">Buy Credits</h2>
+              <button
+                onClick={() => setShowPricing(false)}
+                className="text-[#888] hover:text-white text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <p className="text-[#888] mb-6 text-center">
+              1 credit = 1 image generation | 7 credits = 1 video generation
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {CREDIT_PACKAGES.map((pkg) => (
+                <div
+                  key={pkg.id}
+                  className={`border rounded-lg p-4 text-center ${
+                    pkg.popular
+                      ? "border-[#d4af37] bg-[#d4af37]/10"
+                      : "border-[#333]"
+                  }`}
+                >
+                  {pkg.popular && (
+                    <span className="text-xs bg-[#d4af37] text-black px-2 py-1 rounded mb-2 inline-block">
+                      Most Popular
+                    </span>
+                  )}
+                  <h3 className="text-xl text-white mb-2">{pkg.name}</h3>
+                  <p className="text-3xl text-[#d4af37] font-bold mb-1">
+                    ${pkg.price}
+                  </p>
+                  <p className="text-[#888] mb-4">{pkg.credits} credits</p>
+                  <button
+                    onClick={() => handlePurchase(pkg.id)}
+                    disabled={purchaseLoading === pkg.id}
+                    className="w-full py-2 bg-[#d4af37] text-black rounded hover:bg-[#c4a030] transition-colors disabled:opacity-50"
+                  >
+                    {purchaseLoading === pkg.id ? "Loading..." : "Buy Now"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="text-center mb-8">
         <h1 className="text-3xl md:text-4xl text-[#d4af37] mb-2">Create</h1>
         <p className="text-[#888]">Generate vintage AI creations</p>
