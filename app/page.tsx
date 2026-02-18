@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, SignUpButton } from "@clerk/nextjs";
 import { presets } from "@/lib/presets";
 import { referenceImages } from "@/lib/reference-images";
 
@@ -147,12 +147,186 @@ export default function Home() {
 
   if (!isSignedIn) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
-        <h1 className="text-4xl md:text-6xl mb-4 text-[#d4af37]">retroAI</h1>
-        <p className="text-xl text-[#888] mb-8 max-w-md">
-          Create stunning vintage-style images and videos with AI
-        </p>
-        <p className="text-[#666]">Sign in to start creating</p>
+      <div className="min-h-screen">
+        {/* Hero Section */}
+        <section className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 py-16">
+          <h1 className="text-5xl md:text-7xl mb-6 text-[#d4af37] tracking-tight">
+            retroAI
+          </h1>
+          <p className="text-2xl md:text-3xl text-[#ededed] mb-4 max-w-2xl">
+            Why message when you can <span className="text-[#d4af37]">retro</span> message?
+          </p>
+          <p className="text-lg text-[#888] mb-8 max-w-xl">
+            Create stunning vintage-style images and videos with AI.
+            Transport your messages back to the golden age of cinema.
+          </p>
+          <div className="flex gap-4">
+            <SignUpButton mode="modal">
+              <button className="btn-primary text-lg px-8 py-3">
+                Get Started
+              </button>
+            </SignUpButton>
+          </div>
+        </section>
+
+        {/* Sample Gallery - Film Strip Carousel */}
+        <section className="py-16 border-t border-[#333]">
+          <h2 className="text-3xl text-[#d4af37] text-center mb-4 px-4">See What You Can Create</h2>
+          <p className="text-[#888] text-center mb-12 max-w-lg mx-auto px-4">
+            From vintage portraits to classic movie moments — bring your ideas to life in timeless style
+          </p>
+          <div className="film-strip-container">
+            <div className="film-strip">
+              {/* First set of images */}
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20auto%20race.jpg" alt="Vintage auto race" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20chem%20lab%201.jpg" alt="Vintage chemistry lab" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20monkey business.jpg" alt="Monkey business" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20saddle up.jpg" alt="Saddle up" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20happy trucker.jpg" alt="Happy trucker" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20childs play.jpg" alt="Child's play" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20grumpy.jpg" alt="Grumpy" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20nine to five.jpg" alt="Nine to five" />
+                </div>
+              </div>
+              {/* Duplicate set for seamless loop */}
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20auto%20race.jpg" alt="Vintage auto race" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20chem%20lab%201.jpg" alt="Vintage chemistry lab" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20monkey business.jpg" alt="Monkey business" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20saddle up.jpg" alt="Saddle up" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20happy trucker.jpg" alt="Happy trucker" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20childs play.jpg" alt="Child's play" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20grumpy.jpg" alt="Grumpy" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20nine to five.jpg" alt="Nine to five" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section className="py-16 px-4 border-t border-[#333]">
+          <h2 className="text-3xl text-[#d4af37] text-center mb-12">How It Works</h2>
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="text-center p-6">
+              <div className="text-4xl mb-4">1</div>
+              <h3 className="text-xl text-[#d4af37] mb-2">Describe Your Vision</h3>
+              <p className="text-[#888]">Enter a prompt or choose from vintage presets to set the scene</p>
+            </div>
+            <div className="text-center p-6">
+              <div className="text-4xl mb-4">2</div>
+              <h3 className="text-xl text-[#d4af37] mb-2">AI Creates Magic</h3>
+              <p className="text-[#888]">Our AI generates authentic vintage-style images or videos</p>
+            </div>
+            <div className="text-center p-6">
+              <div className="text-4xl mb-4">3</div>
+              <h3 className="text-xl text-[#d4af37] mb-2">Share & Download</h3>
+              <p className="text-[#888]">Save your creations and share the nostalgia</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Video Preview Section */}
+        <section className="py-16 px-4 border-t border-[#333]">
+          <h2 className="text-3xl text-[#d4af37] text-center mb-4">Bring Stills to Life</h2>
+          <p className="text-[#888] text-center mb-12 max-w-lg mx-auto">
+            Generate vintage videos complete with authentic film grain and classic aesthetics
+          </p>
+          <div className="max-w-2xl mx-auto">
+            <video
+              className="w-full rounded-lg border border-[#333]"
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              poster="/retroAI%20auto%20race.jpg"
+              src="/preview-video.mp4"
+            />
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-20 px-4 border-t border-[#333] text-center">
+          <h2 className="text-3xl md:text-4xl text-[#ededed] mb-4">Ready to Go Retro?</h2>
+          <p className="text-[#888] mb-8 max-w-md mx-auto">
+            Sign up now and start creating timeless vintage content with AI
+          </p>
+          <SignUpButton mode="modal">
+            <button className="btn-primary text-lg px-8 py-3">
+              Start Creating
+            </button>
+          </SignUpButton>
+        </section>
+
+        {/* Footer */}
+        <footer className="py-8 px-4 border-t border-[#333] text-center">
+          <p className="text-[#666] text-sm mb-2">RetroAI</p>
+          <div className="flex justify-center gap-4 text-xs text-[#555]">
+            <a href="/terms" className="hover:text-[#d4af37] transition-colors">Terms & Conditions</a>
+            <span>|</span>
+            <a href="/privacy" className="hover:text-[#d4af37] transition-colors">Privacy Policy</a>
+          </div>
+        </footer>
       </div>
     );
   }
