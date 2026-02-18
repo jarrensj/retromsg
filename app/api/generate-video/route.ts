@@ -9,9 +9,9 @@ import { s3, BUCKET } from "@/lib/s3";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
 
-// Veo 2 model endpoint (long-running operation)
+// Veo 3.1 model endpoint (long-running operation) - generates video with native audio
 const VEO_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning";
+  "https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning";
 
 // Operations status endpoint
 const OPERATIONS_URL = "https://generativelanguage.googleapis.com/v1beta";

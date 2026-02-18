@@ -363,7 +363,6 @@ export default function Home() {
                     src={gen.result_url}
                     className="w-full aspect-video object-cover"
                     controls
-                    muted
                   />
                 ) : (
                   <img
