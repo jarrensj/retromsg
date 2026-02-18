@@ -34,6 +34,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Enhance prompt with vintage film effects
+    const vintagePrompt = `Create a vintage 1940s style photograph. ${prompt}. Add authentic film aging effects: random dust particles scattered across the image, subtle film grain texture, light scratches and scuff marks, slightly faded colors with a sepia-warm tone, and a dusty film overlay.`;
+
     // Build the parts array for Gemini
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
 
@@ -52,14 +55,14 @@ export async function POST(request: NextRequest) {
           },
         });
         parts.push({
-          text: `Use this reference image as style inspiration. ${prompt}`,
+          text: `Use this reference image as style inspiration. ${vintagePrompt}`,
         });
       } catch (err) {
         console.error("Failed to read reference image:", err);
-        parts.push({ text: prompt });
+        parts.push({ text: vintagePrompt });
       }
     } else {
-      parts.push({ text: prompt });
+      parts.push({ text: vintagePrompt });
     }
 
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
