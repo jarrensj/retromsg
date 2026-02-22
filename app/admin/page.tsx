@@ -40,7 +40,7 @@ type CreditPurchase = {
   } | null;
 };
 
-type Tab = "gallery" | "purchases" | "admins" | "audit";
+type Tab = "gallery" | "purchases" | "admins" | "audit" | "settings";
 
 export default function AdminPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -59,6 +59,11 @@ export default function AdminPage() {
   const [adminRefreshKey, setAdminRefreshKey] = useState(0);
   const [removingAdminEmail, setRemovingAdminEmail] = useState<string | null>(null);
   const [purchases, setPurchases] = useState<CreditPurchase[]>([]);
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [videoPrompt, setVideoPrompt] = useState("");
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState("");
 
   // Check admin status
   useEffect(() => {
@@ -178,6 +183,29 @@ export default function AdminPage() {
     }
   }, [isAdmin]);
 
+  // Fetch settings
+  useEffect(() => {
+    async function fetchSettings() {
+      setSettingsLoading(true);
+      try {
+        const res = await fetch("/api/admin/settings");
+        if (res.ok) {
+          const data = await res.json();
+          setImagePrompt(data.image || "");
+          setVideoPrompt(data.video || "");
+        }
+      } catch {
+        console.error("Failed to fetch settings");
+      } finally {
+        setSettingsLoading(false);
+      }
+    }
+
+    if (isAdmin) {
+      fetchSettings();
+    }
+  }, [isAdmin]);
+
   async function handleAddAdmin(e: React.FormEvent) {
     e.preventDefault();
     setAddAdminError("");
@@ -240,6 +268,35 @@ export default function AdminPage() {
     }
   }
 
+  async function handleSaveSettings(e: React.FormEvent) {
+    e.preventDefault();
+    setSettingsSaving(true);
+    setSettingsMessage("");
+
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imagePrompt: imagePrompt.trim(),
+          videoPrompt: videoPrompt.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setSettingsMessage(`Error: ${data.error || "Failed to save settings"}`);
+        return;
+      }
+
+      setSettingsMessage("Settings saved successfully!");
+    } catch {
+      setSettingsMessage("Error: Something went wrong");
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
+
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -280,6 +337,7 @@ export default function AdminPage() {
     { id: "purchases", label: "Purchases" },
     { id: "admins", label: "Admins" },
     { id: "audit", label: "Audit Trail" },
+    { id: "settings", label: "Settings" },
   ];
 
   return (
@@ -502,6 +560,70 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Settings Tab */}
+      {activeTab === "settings" && (
+        <div className="card p-6">
+          <h2 className="text-xl text-[#d4af37] mb-4">Default Prompts</h2>
+          <p className="text-[#888] text-sm mb-6">
+            These prompts are appended to every image or video generation to add
+            the vintage film effect.
+          </p>
+
+          {settingsLoading ? (
+            <p className="text-[#666]">Loading settings...</p>
+          ) : (
+            <form onSubmit={handleSaveSettings} className="space-y-6">
+              <div>
+                <label className="block text-sm text-[#888] mb-2">
+                  Image Default Prompt
+                </label>
+                <textarea
+                  value={imagePrompt}
+                  onChange={(e) => setImagePrompt(e.target.value)}
+                  rows={4}
+                  className="w-full p-3 resize-none"
+                  placeholder="Enter the default prompt for images..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-[#888] mb-2">
+                  Video Default Prompt
+                </label>
+                <textarea
+                  value={videoPrompt}
+                  onChange={(e) => setVideoPrompt(e.target.value)}
+                  rows={4}
+                  className="w-full p-3 resize-none"
+                  placeholder="Enter the default prompt for videos..."
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <button
+                  type="submit"
+                  disabled={settingsSaving}
+                  className="btn-primary px-6"
+                >
+                  {settingsSaving ? "Saving..." : "Save Settings"}
+                </button>
+                {settingsMessage && (
+                  <p
+                    className={`text-sm ${
+                      settingsMessage.startsWith("Error")
+                        ? "text-red-400"
+                        : "text-green-400"
+                    }`}
+                  >
+                    {settingsMessage}
+                  </p>
+                )}
+              </div>
+            </form>
           )}
         </div>
       )}

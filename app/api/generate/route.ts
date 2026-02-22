@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { readFile } from "fs/promises";
 import path from "path";
-import { getOrCreateUser, saveGeneration, deductCredits } from "@/lib/supabase";
+import { getOrCreateUser, saveGeneration, deductCredits, getDefaultPrompts } from "@/lib/supabase";
 import { s3, BUCKET } from "@/lib/s3";
 import { CREDIT_COSTS } from "@/lib/stripe";
 
@@ -44,8 +44,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get default prompt from database
+    const defaultPrompts = await getDefaultPrompts();
+
     // Enhance prompt with vintage film effects
-    const vintagePrompt = `Create a vintage 1940s style photograph. ${prompt}. Add authentic film aging effects: random dust particles scattered across the image, subtle film grain texture, light scratches and scuff marks, slightly faded colors with a sepia-warm tone, and a dusty film overlay.`;
+    const vintagePrompt = `${defaultPrompts.image} ${prompt}`;
 
     // Build the parts array for Gemini
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
