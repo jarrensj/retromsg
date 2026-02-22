@@ -149,3 +149,91 @@ export async function getUserGenerations(userId: string, limit = 50) {
 
   return data;
 }
+
+// ============ Admin Functions ============
+
+// Check if an email is an admin
+export async function isAdmin(email: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("admins")
+    .select("id")
+    .eq("email", email.toLowerCase())
+    .single();
+
+  return !!data;
+}
+
+// Get all admins
+export async function getAdmins() {
+  const { data, error } = await supabaseAdmin
+    .from("admins")
+    .select("id, email, created_at, created_by")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to fetch admins: ${error.message}`);
+  }
+
+  return data;
+}
+
+// Add a new admin
+export async function addAdmin(email: string, createdBy: string) {
+  const { error } = await supabaseAdmin
+    .from("admins")
+    .insert({ email: email.toLowerCase(), created_by: createdBy });
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("This email is already an admin");
+    }
+    throw new Error(`Failed to add admin: ${error.message}`);
+  }
+}
+
+// Get all users (for admin panel)
+export async function getAllUsers() {
+  const { data, error } = await supabaseAdmin
+    .from("users")
+    .select("id, clerk_id, email, credits, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch users: ${error.message}`);
+  }
+
+  return data;
+}
+
+// Get all generations (for admin panel), optionally filtered by user
+export async function getAllGenerations(userId?: string, limit = 100) {
+  let query = supabaseAdmin
+    .from("generations")
+    .select(`
+      id,
+      prompt,
+      source_url,
+      result_url,
+      type,
+      created_at,
+      user_id,
+      users (
+        email,
+        clerk_id
+      )
+    `)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to fetch generations: ${error.message}`);
+  }
+
+  return data;
+}
