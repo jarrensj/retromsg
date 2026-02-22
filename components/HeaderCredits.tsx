@@ -149,17 +149,19 @@ export default function HeaderCredits() {
               {CREDIT_PACKAGES.map((pkg) => (
                 <div
                   key={pkg.id}
-                  className={`border rounded-lg p-4 text-center ${
+                  className={`border rounded-lg p-4 text-center flex flex-col ${
                     pkg.popular
                       ? "border-[#d4af37] bg-[#d4af37]/10"
                       : "border-[#333]"
                   }`}
                 >
-                  {pkg.popular && (
-                    <span className="text-xs bg-[#d4af37] text-black px-2 py-1 rounded mb-2 inline-block">
-                      Most Popular
-                    </span>
-                  )}
+                  <div className="h-6 mb-2 flex items-center justify-center">
+                    {pkg.popular && (
+                      <span className="text-xs bg-[#d4af37] text-black px-2 py-1 rounded">
+                        Most Popular
+                      </span>
+                    )}
+                  </div>
                   <h3 className="text-xl text-white mb-2">{pkg.name}</h3>
                   <p className="text-3xl text-[#d4af37] font-bold mb-1">
                     ${pkg.price}
