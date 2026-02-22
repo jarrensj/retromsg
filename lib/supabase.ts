@@ -294,3 +294,66 @@ export async function getAuditLogs(limit = 50) {
 
   return data;
 }
+
+// ============ Credit Purchase Functions ============
+
+// Log a credit purchase
+export async function logCreditPurchase({
+  clerkId,
+  credits,
+  amountCents,
+  stripeSessionId,
+}: {
+  clerkId: string;
+  credits: number;
+  amountCents: number;
+  stripeSessionId?: string;
+}) {
+  // First get the user's internal ID
+  const { data: user } = await supabaseAdmin
+    .from("users")
+    .select("id")
+    .eq("clerk_id", clerkId)
+    .single();
+
+  if (!user) {
+    console.error("User not found for credit purchase log:", clerkId);
+    return;
+  }
+
+  const { error } = await supabaseAdmin.from("credit_purchases").insert({
+    user_id: user.id,
+    credits,
+    amount_cents: amountCents,
+    stripe_session_id: stripeSessionId,
+  });
+
+  if (error) {
+    console.error("Failed to log credit purchase:", error);
+  }
+}
+
+// Get all credit purchases (for admin panel)
+export async function getAllCreditPurchases(limit = 100) {
+  const { data, error } = await supabaseAdmin
+    .from("credit_purchases")
+    .select(`
+      id,
+      credits,
+      amount_cents,
+      stripe_session_id,
+      created_at,
+      user_id,
+      users (
+        email
+      )
+    `)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to fetch credit purchases: ${error.message}`);
+  }
+
+  return data;
+}
