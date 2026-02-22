@@ -1,18 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, SignUpButton } from "@clerk/nextjs";
+import Link from "next/link";
 import { presets } from "@/lib/presets";
 import { referenceImages } from "@/lib/reference-images";
-
-type Generation = {
-  id: string;
-  prompt: string;
-  source_url: string | null;
-  result_url: string;
-  type?: "image" | "video";
-  created_at: string;
-};
 
 const CREDIT_PACKAGES = [
   { id: "starter", name: "Starter", price: 5, credits: 10 },
@@ -24,13 +16,12 @@ export default function Home() {
   const { isSignedIn } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<"image" | "video">("image");
-  const [selectedRef, setSelectedRef] = useState<string | null>(null);
+  const [selectedRefs, setSelectedRefs] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [image, setImage] = useState<{ mimeType: string; data: string } | null>(null);
   const [video, setVideo] = useState<{ mimeType: string; data: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [generations, setGenerations] = useState<Generation[]>([]);
-  const [loadingGallery, setLoadingGallery] = useState(true);
   const [demoPassword, setDemoPassword] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passwordError, setPasswordError] = useState("");
@@ -53,15 +44,36 @@ export default function Home() {
     document.body.removeChild(link);
   }
 
-  // Download helper for URLs - uses API route to force download
-  function downloadUrl(url: string, filename: string) {
-    const downloadLink = `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
-    const link = document.createElement("a");
-    link.href = downloadLink;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Handle image upload
+  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setUploadedImages((prev) => [...prev, dataUrl]);
+      // Auto-select if under limit
+      if (selectedRefs.length < 3) {
+        setSelectedRefs((prev) => [...prev, dataUrl]);
+      }
+    };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be uploaded again
+    e.target.value = "";
+  }
+
+  // Toggle image selection (max 3)
+  function toggleImageSelection(src: string) {
+    setSelectedRefs((prev) => {
+      if (prev.includes(src)) {
+        return prev.filter((s) => s !== src);
+      }
+      if (prev.length >= 3) {
+        return prev; // Max 3 images
+      }
+      return [...prev, src];
+    });
   }
 
   async function handlePasswordSubmit(e: React.FormEvent) {
@@ -121,15 +133,8 @@ export default function Home() {
   const initializeUser = useCallback(async () => {
     try {
       await fetch("/api/user");
-      const genRes = await fetch("/api/generations");
-      if (genRes.ok) {
-        const genData = await genRes.json();
-        setGenerations(genData.generations || []);
-      }
     } catch {
       console.error("Failed to initialize user");
-    } finally {
-      setLoadingGallery(false);
     }
   }, []);
 
@@ -166,7 +171,7 @@ export default function Home() {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, referenceImage: selectedRef, demoPassword }),
+        body: JSON.stringify({ prompt, referenceImages: selectedRefs, demoPassword }),
       });
 
       const data = await res.json();
@@ -197,12 +202,186 @@ export default function Home() {
 
   if (!isSignedIn) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
-        <h1 className="text-4xl md:text-6xl mb-4 text-[#d4af37]">retroAI</h1>
-        <p className="text-xl text-[#888] mb-8 max-w-md">
-          Create stunning vintage-style images and videos with AI
-        </p>
-        <p className="text-[#666]">Sign in to start creating</p>
+      <div className="min-h-screen">
+        {/* Hero Section */}
+        <section className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 py-16">
+          <h1 className="text-5xl md:text-7xl mb-6 text-[#d4af37] tracking-tight">
+            retroAI
+          </h1>
+          <p className="text-2xl md:text-3xl text-[#ededed] mb-4 max-w-2xl">
+            Why message when you can <span className="text-[#d4af37]">retro</span> message?
+          </p>
+          <p className="text-lg text-[#888] mb-8 max-w-xl">
+            Create stunning vintage-style images and videos with AI.
+            Transport your messages back to the golden age of cinema.
+          </p>
+          <div className="flex gap-4">
+            <SignUpButton mode="modal">
+              <button className="btn-primary text-lg px-8 py-3">
+                Get Started
+              </button>
+            </SignUpButton>
+          </div>
+        </section>
+
+        {/* Sample Gallery - Film Strip Carousel */}
+        <section className="py-16 border-t border-[#333]">
+          <h2 className="text-3xl text-[#d4af37] text-center mb-4 px-4">See What You Can Create</h2>
+          <p className="text-[#888] text-center mb-12 max-w-lg mx-auto px-4">
+            From vintage portraits to classic movie moments — bring your ideas to life in timeless style
+          </p>
+          <div className="film-strip-container">
+            <div className="film-strip">
+              {/* First set of images */}
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20auto%20race.jpg" alt="Vintage auto race" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20chem%20lab%201.jpg" alt="Vintage chemistry lab" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20monkey business.jpg" alt="Monkey business" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20saddle up.jpg" alt="Saddle up" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20happy trucker.jpg" alt="Happy trucker" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20childs play.jpg" alt="Child's play" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20grumpy.jpg" alt="Grumpy" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20nine to five.jpg" alt="Nine to five" />
+                </div>
+              </div>
+              {/* Duplicate set for seamless loop */}
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20auto%20race.jpg" alt="Vintage auto race" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20chem%20lab%201.jpg" alt="Vintage chemistry lab" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20monkey business.jpg" alt="Monkey business" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20saddle up.jpg" alt="Saddle up" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20happy trucker.jpg" alt="Happy trucker" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20childs play.jpg" alt="Child's play" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20grumpy.jpg" alt="Grumpy" />
+                </div>
+              </div>
+              <div className="film-frame">
+                <div className="film-frame-inner">
+                  <img src="/retroAI%20nine to five.jpg" alt="Nine to five" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section className="py-16 px-4 border-t border-[#333]">
+          <h2 className="text-3xl text-[#d4af37] text-center mb-12">How It Works</h2>
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="text-center p-6">
+              <div className="text-4xl mb-4">1</div>
+              <h3 className="text-xl text-[#d4af37] mb-2">Describe Your Vision</h3>
+              <p className="text-[#888]">Enter a prompt or choose from vintage presets to set the scene</p>
+            </div>
+            <div className="text-center p-6">
+              <div className="text-4xl mb-4">2</div>
+              <h3 className="text-xl text-[#d4af37] mb-2">AI Creates Magic</h3>
+              <p className="text-[#888]">Our AI generates authentic vintage-style images or videos</p>
+            </div>
+            <div className="text-center p-6">
+              <div className="text-4xl mb-4">3</div>
+              <h3 className="text-xl text-[#d4af37] mb-2">Share & Download</h3>
+              <p className="text-[#888]">Save your creations and share the nostalgia</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Video Preview Section */}
+        <section className="py-16 px-4 border-t border-[#333]">
+          <h2 className="text-3xl text-[#d4af37] text-center mb-4">Bring Stills to Life</h2>
+          <p className="text-[#888] text-center mb-12 max-w-lg mx-auto">
+            Generate vintage videos complete with authentic film grain and classic aesthetics
+          </p>
+          <div className="max-w-2xl mx-auto">
+            <video
+              className="w-full rounded-lg border border-[#333]"
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              poster="/retroAI%20auto%20race.jpg"
+              src="/preview-video.mp4"
+            />
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-20 px-4 border-t border-[#333] text-center">
+          <h2 className="text-3xl md:text-4xl text-[#ededed] mb-4">Ready to Go Retro?</h2>
+          <p className="text-[#888] mb-8 max-w-md mx-auto">
+            Sign up now and start creating timeless vintage content with AI
+          </p>
+          <SignUpButton mode="modal">
+            <button className="btn-primary text-lg px-8 py-3">
+              Start Creating
+            </button>
+          </SignUpButton>
+        </section>
+
+        {/* Footer */}
+        <footer className="py-8 px-4 border-t border-[#333] text-center">
+          <p className="text-[#666] text-sm mb-2">RetroAI</p>
+          <div className="flex justify-center gap-4 text-xs text-[#555]">
+            <a href="/terms" className="hover:text-[#d4af37] transition-colors">Terms & Conditions</a>
+            <span>|</span>
+            <a href="/privacy" className="hover:text-[#d4af37] transition-colors">Privacy Policy</a>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -312,26 +491,77 @@ export default function Home() {
 
         {/* Reference Image Picker */}
         <div className="mb-4">
-          <p className="text-sm text-[#888] mb-2">Reference image (optional):</p>
+          <p className="text-sm text-[#888] mb-2">
+            Reference images (optional, select up to 3):
+            {selectedRefs.length > 0 && (
+              <span className="text-[#d4af37] ml-2">{selectedRefs.length}/3 selected</span>
+            )}
+          </p>
           <div className="flex gap-2 overflow-x-auto pb-2">
             <button
               type="button"
-              onClick={() => setSelectedRef(null)}
+              onClick={() => setSelectedRefs([])}
               className={`flex-shrink-0 w-16 h-16 rounded border-2 flex items-center justify-center text-xs ${
-                selectedRef === null
+                selectedRefs.length === 0
                   ? "border-[#d4af37] bg-[#1a1a1a]"
                   : "border-[#333] bg-[#111]"
               }`}
             >
               None
             </button>
+            {/* Upload button */}
+            <label className="flex-shrink-0 w-16 h-16 rounded border-2 border-dashed flex items-center justify-center cursor-pointer transition-colors border-[#555] bg-[#111] hover:border-[#d4af37] hover:bg-[#1a1a1a]">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <svg
+                className="w-6 h-6 text-[#888]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </label>
+            {/* Uploaded images */}
+            {uploadedImages.map((img, index) => (
+              <button
+                key={`uploaded-${index}`}
+                type="button"
+                onClick={() => toggleImageSelection(img)}
+                className={`relative flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                  selectedRefs.includes(img)
+                    ? "border-[#d4af37]"
+                    : "border-[#333]"
+                }`}
+              >
+                <img
+                  src={img}
+                  alt={`Uploaded ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                {selectedRefs.includes(img) && (
+                  <div className="absolute top-0 right-0 bg-[#d4af37] text-black text-xs w-5 h-5 flex items-center justify-center rounded-bl">
+                    {selectedRefs.indexOf(img) + 1}
+                  </div>
+                )}
+              </button>
+            ))}
             {referenceImages.map((img) => (
               <button
                 key={img.id}
                 type="button"
-                onClick={() => setSelectedRef(img.src)}
-                className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
-                  selectedRef === img.src
+                onClick={() => toggleImageSelection(img.src)}
+                className={`relative flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                  selectedRefs.includes(img.src)
                     ? "border-[#d4af37]"
                     : "border-[#333]"
                 }`}
@@ -341,6 +571,11 @@ export default function Home() {
                   alt={img.name}
                   className="w-full h-full object-cover"
                 />
+                {selectedRefs.includes(img.src) && (
+                  <div className="absolute top-0 right-0 bg-[#d4af37] text-black text-xs w-5 h-5 flex items-center justify-center rounded-bl">
+                    {selectedRefs.indexOf(img.src) + 1}
+                  </div>
+                )}
               </button>
             ))}
           </div>
@@ -446,60 +681,13 @@ export default function Home() {
         </div>
       )}
 
-      <div className="border-t border-[#333] pt-8">
-        <h2 className="text-2xl text-[#d4af37] mb-6 text-center">Your Creations</h2>
-        {loadingGallery ? (
-          <p className="text-center text-[#888]">Loading...</p>
-        ) : generations.length === 0 ? (
-          <p className="text-center text-[#666]">
-            No creations yet. Generate your first one above!
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {generations.map((gen) => (
-              <div key={gen.id} className="card">
-                {gen.type === "video" ? (
-                  <video
-                    src={gen.result_url}
-                    className="w-full aspect-video object-cover"
-                    controls
-                  />
-                ) : (
-                  <img
-                    src={gen.result_url}
-                    alt={gen.prompt}
-                    className="w-full aspect-square object-cover"
-                  />
-                )}
-                <div className="p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#d4af37]">
-                      {gen.type === "video" ? "Video" : "Image"}
-                    </span>
-                    <button
-                      onClick={() => downloadUrl(
-                        gen.result_url,
-                        generateFilename(gen.type || "image")
-                      )}
-                      className="text-xs underline text-[#888] hover:text-[#d4af37] transition-colors"
-                    >
-                      Download
-                    </button>
-                  </div>
-                  <p
-                    className="text-sm text-[#888] truncate"
-                    title={gen.prompt}
-                  >
-                    {gen.prompt}
-                  </p>
-                  <p className="text-xs text-[#666] mt-1">
-                    {new Date(gen.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="border-t border-[#333] pt-8 text-center">
+        <Link
+          href="/gallery"
+          className="inline-block btn-primary px-8"
+        >
+          View Your Creations
+        </Link>
       </div>
     </div>
   );

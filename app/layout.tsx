@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import Image from "next/image";
 import { Special_Elite } from "next/font/google";
 import {
@@ -10,6 +11,7 @@ import {
   UserButton,
 } from "@clerk/nextjs";
 import HeaderCredits from "@/components/HeaderCredits";
+import NavLink from "@/components/NavLink";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
@@ -33,13 +35,15 @@ export default function RootLayout({
       <html lang="en">
         <body className={specialElite.className}>
           <header className="flex justify-between items-center p-4 border-b border-[#333]">
-            <Image
-              src="/logo.png"
-              alt="retroAI"
-              width={120}
-              height={40}
-              priority
-            />
+            <Link href="/">
+              <Image
+                src="/logo.png"
+                alt="retroAI"
+                width={120}
+                height={40}
+                priority
+              />
+            </Link>
             <div className="flex items-center gap-4">
               <SignedOut>
                 <SignInButton>
@@ -54,6 +58,7 @@ export default function RootLayout({
                 </SignUpButton>
               </SignedOut>
               <SignedIn>
+                <NavLink />
                 <HeaderCredits />
                 <UserButton />
               </SignedIn>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { addCredits } from "@/lib/supabase";
+import { addCredits, logCreditPurchase } from "@/lib/supabase";
 import Stripe from "stripe";
 
 export async function POST(request: NextRequest) {
@@ -46,6 +46,14 @@ export async function POST(request: NextRequest) {
       try {
         await addCredits(clerkId, credits);
         console.log(`Successfully added ${credits} credits to user ${clerkId}`);
+
+        // Log the purchase
+        await logCreditPurchase({
+          clerkId,
+          credits,
+          amountCents: session.amount_total || 0,
+          stripeSessionId: session.id,
+        });
       } catch (error) {
         console.error("Failed to add credits:", error);
         return NextResponse.json(

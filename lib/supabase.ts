@@ -106,12 +106,14 @@ export async function saveGeneration({
   userId,
   prompt,
   sourceUrl,
+  referenceImages,
   resultUrl,
   type = "image",
 }: {
   userId: string;
   prompt: string;
   sourceUrl?: string;
+  referenceImages?: string[];
   resultUrl: string;
   type?: "image" | "video";
 }) {
@@ -121,6 +123,7 @@ export async function saveGeneration({
       user_id: userId,
       prompt,
       source_url: sourceUrl,
+      reference_images: referenceImages || [],
       result_url: resultUrl,
       type,
     })
@@ -138,13 +141,218 @@ export async function saveGeneration({
 export async function getUserGenerations(userId: string, limit = 50) {
   const { data, error } = await supabaseAdmin
     .from("generations")
-    .select("id, prompt, source_url, result_url, type, created_at")
+    .select("id, prompt, source_url, reference_images, result_url, type, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) {
     throw new Error(`Failed to fetch generations: ${error.message}`);
+  }
+
+  return data;
+}
+
+// ============ Admin Functions ============
+
+// Check if an email is an admin
+export async function isAdmin(email: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("admins")
+    .select("id")
+    .eq("email", email.toLowerCase())
+    .single();
+
+  return !!data;
+}
+
+// Get all admins
+export async function getAdmins() {
+  const { data, error } = await supabaseAdmin
+    .from("admins")
+    .select("id, email, created_at, created_by")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to fetch admins: ${error.message}`);
+  }
+
+  return data;
+}
+
+// Add a new admin
+export async function addAdmin(email: string, createdBy: string) {
+  const { error } = await supabaseAdmin
+    .from("admins")
+    .insert({ email: email.toLowerCase(), created_by: createdBy });
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("This email is already an admin");
+    }
+    throw new Error(`Failed to add admin: ${error.message}`);
+  }
+}
+
+// Remove an admin
+export async function removeAdmin(email: string) {
+  const { error } = await supabaseAdmin
+    .from("admins")
+    .delete()
+    .eq("email", email.toLowerCase());
+
+  if (error) {
+    throw new Error(`Failed to remove admin: ${error.message}`);
+  }
+}
+
+// Get all users (for admin panel)
+export async function getAllUsers() {
+  const { data, error } = await supabaseAdmin
+    .from("users")
+    .select("id, clerk_id, email, credits, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch users: ${error.message}`);
+  }
+
+  return data;
+}
+
+// Get all generations (for admin panel), optionally filtered by user
+export async function getAllGenerations(userId?: string, limit = 100) {
+  let query = supabaseAdmin
+    .from("generations")
+    .select(`
+      id,
+      prompt,
+      source_url,
+      reference_images,
+      result_url,
+      type,
+      created_at,
+      user_id,
+      users (
+        email,
+        clerk_id
+      )
+    `)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to fetch generations: ${error.message}`);
+  }
+
+  return data;
+}
+
+// ============ Audit Log Functions ============
+
+// Log an admin action
+export async function logAuditAction({
+  action,
+  actorEmail,
+  targetEmail,
+  details,
+}: {
+  action: string;
+  actorEmail: string;
+  targetEmail?: string;
+  details?: Record<string, unknown>;
+}) {
+  const { error } = await supabaseAdmin.from("audit_logs").insert({
+    action,
+    actor_email: actorEmail,
+    target_email: targetEmail,
+    details,
+  });
+
+  if (error) {
+    console.error("Failed to log audit action:", error);
+  }
+}
+
+// Get audit logs
+export async function getAuditLogs(limit = 50) {
+  const { data, error } = await supabaseAdmin
+    .from("audit_logs")
+    .select("id, action, actor_email, target_email, details, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to fetch audit logs: ${error.message}`);
+  }
+
+  return data;
+}
+
+// ============ Credit Purchase Functions ============
+
+// Log a credit purchase
+export async function logCreditPurchase({
+  clerkId,
+  credits,
+  amountCents,
+  stripeSessionId,
+}: {
+  clerkId: string;
+  credits: number;
+  amountCents: number;
+  stripeSessionId?: string;
+}) {
+  // First get the user's internal ID
+  const { data: user } = await supabaseAdmin
+    .from("users")
+    .select("id")
+    .eq("clerk_id", clerkId)
+    .single();
+
+  if (!user) {
+    console.error("User not found for credit purchase log:", clerkId);
+    return;
+  }
+
+  const { error } = await supabaseAdmin.from("credit_purchases").insert({
+    user_id: user.id,
+    credits,
+    amount_cents: amountCents,
+    stripe_session_id: stripeSessionId,
+  });
+
+  if (error) {
+    console.error("Failed to log credit purchase:", error);
+  }
+}
+
+// Get all credit purchases (for admin panel)
+export async function getAllCreditPurchases(limit = 100) {
+  const { data, error } = await supabaseAdmin
+    .from("credit_purchases")
+    .select(`
+      id,
+      credits,
+      amount_cents,
+      stripe_session_id,
+      created_at,
+      user_id,
+      users (
+        email
+      )
+    `)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to fetch credit purchases: ${error.message}`);
   }
 
   return data;

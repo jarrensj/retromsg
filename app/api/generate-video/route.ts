@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     const user = await getOrCreateUser(clerkId);
 
-    const { prompt, referenceImage, demoPassword } = await request.json();
+    const { prompt, referenceImages, demoPassword } = await request.json();
 
     // Verify demo password if set
     if (DEMO_PASSWORD && demoPassword !== DEMO_PASSWORD) {
@@ -62,13 +62,30 @@ export async function POST(request: NextRequest) {
       prompt: `Create a vintage 1940s style video. ${prompt}. Add authentic film aging effects: random dust particles floating across the frame, film grain texture, light scratches and scuff marks on the film, slightly faded colors with a sepia-warm tone, and occasional film flicker.`,
     };
 
-    // Check if reference image is provided for image-to-video
+    // Check if reference image is provided for image-to-video (use first image only)
+    const refs = Array.isArray(referenceImages) ? referenceImages : [];
+    const referenceImage = refs[0];
     if (referenceImage) {
       try {
-        const imagePath = path.join(process.cwd(), "public", referenceImage);
-        const imageBuffer = await readFile(imagePath);
-        const base64Image = imageBuffer.toString("base64");
-        const mimeType = referenceImage.endsWith(".png") ? "image/png" : "image/jpeg";
+        let base64Image: string;
+        let mimeType: string;
+
+        // Check if it's a data URL (uploaded image)
+        if (referenceImage.startsWith("data:")) {
+          const matches = referenceImage.match(/^data:([^;]+);base64,(.+)$/);
+          if (matches) {
+            mimeType = matches[1];
+            base64Image = matches[2];
+          } else {
+            throw new Error("Invalid data URL format");
+          }
+        } else {
+          // It's a file path - read from public directory
+          const imagePath = path.join(process.cwd(), "public", referenceImage);
+          const imageBuffer = await readFile(imagePath);
+          base64Image = imageBuffer.toString("base64");
+          mimeType = referenceImage.endsWith(".png") ? "image/png" : "image/jpeg";
+        }
 
         instance.image = {
           bytesBase64Encoded: base64Image,
