@@ -245,6 +245,7 @@ export async function POST(request: NextRequest) {
     await saveGeneration({
       userId: user.id,
       prompt,
+      basePrompt: defaultPrompts.video,
       sourceUrl: referenceImage || undefined,
       resultUrl: key,
       type: "video",

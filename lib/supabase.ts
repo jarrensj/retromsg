@@ -105,6 +105,7 @@ export async function deductCredits(clerkId: string, amount: number): Promise<bo
 export async function saveGeneration({
   userId,
   prompt,
+  basePrompt,
   sourceUrl,
   referenceImages,
   resultUrl,
@@ -112,6 +113,7 @@ export async function saveGeneration({
 }: {
   userId: string;
   prompt: string;
+  basePrompt?: string;
   sourceUrl?: string;
   referenceImages?: string[];
   resultUrl: string;
@@ -122,6 +124,7 @@ export async function saveGeneration({
     .insert({
       user_id: userId,
       prompt,
+      base_prompt: basePrompt,
       source_url: sourceUrl,
       reference_images: referenceImages || [],
       result_url: resultUrl,
@@ -227,6 +230,7 @@ export async function getAllGenerations(userId?: string, limit = 100) {
     .select(`
       id,
       prompt,
+      base_prompt,
       source_url,
       reference_images,
       result_url,

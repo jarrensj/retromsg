@@ -3,6 +3,7 @@
 export type Generation = {
   id: string;
   prompt: string;
+  base_prompt?: string | null;
   source_url: string | null;
   reference_images?: string[];
   result_url: string;
@@ -105,6 +106,21 @@ export default function GenerationsGallery({
             <p className="text-sm text-[#888] truncate" title={gen.prompt}>
               {gen.prompt}
             </p>
+            {showUserEmail && gen.base_prompt && (
+              <details className="mt-2">
+                <summary className="text-xs text-[#666] cursor-pointer hover:text-[#888]">
+                  View full prompt
+                </summary>
+                <div className="mt-1 p-2 bg-[#1a1a1a] rounded text-xs">
+                  <p className="text-[#888] mb-1">
+                    <span className="text-[#d4af37]">Base:</span> {gen.base_prompt}
+                  </p>
+                  <p className="text-[#888]">
+                    <span className="text-[#d4af37]">User:</span> {gen.prompt}
+                  </p>
+                </div>
+              </details>
+            )}
             {showUserEmail && gen.reference_images && gen.reference_images.length > 0 && (
               <div className="mt-2">
                 <p className="text-xs text-[#666] mb-1">
