@@ -1,6 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
-import { isAdmin, addAdmin } from "@/lib/supabase";
+import { isAdmin, addAdmin, logAuditAction } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,6 +35,13 @@ export async function POST(request: NextRequest) {
     }
 
     await addAdmin(email, adminEmail);
+
+    // Log the action
+    await logAuditAction({
+      action: "admin_added",
+      actorEmail: adminEmail,
+      targetEmail: email.toLowerCase(),
+    });
 
     return NextResponse.json({ success: true, email: email.toLowerCase() });
   } catch (error) {

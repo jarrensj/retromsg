@@ -237,3 +237,44 @@ export async function getAllGenerations(userId?: string, limit = 100) {
 
   return data;
 }
+
+// ============ Audit Log Functions ============
+
+// Log an admin action
+export async function logAuditAction({
+  action,
+  actorEmail,
+  targetEmail,
+  details,
+}: {
+  action: string;
+  actorEmail: string;
+  targetEmail?: string;
+  details?: Record<string, unknown>;
+}) {
+  const { error } = await supabaseAdmin.from("audit_logs").insert({
+    action,
+    actor_email: actorEmail,
+    target_email: targetEmail,
+    details,
+  });
+
+  if (error) {
+    console.error("Failed to log audit action:", error);
+  }
+}
+
+// Get audit logs
+export async function getAuditLogs(limit = 50) {
+  const { data, error } = await supabaseAdmin
+    .from("audit_logs")
+    .select("id, action, actor_email, target_email, details, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to fetch audit logs: ${error.message}`);
+  }
+
+  return data;
+}

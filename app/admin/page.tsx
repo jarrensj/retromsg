@@ -25,6 +25,15 @@ type Generation = {
   };
 };
 
+type AuditLog = {
+  id: string;
+  action: string;
+  actor_email: string;
+  target_email: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+};
+
 export default function AdminPage() {
   const { isSignedIn, isLoaded } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -36,6 +45,7 @@ export default function AdminPage() {
   const [addAdminLoading, setAddAdminLoading] = useState(false);
   const [addAdminError, setAddAdminError] = useState("");
   const [addAdminSuccess, setAddAdminSuccess] = useState("");
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   // Check admin status
   useEffect(() => {
@@ -97,6 +107,25 @@ export default function AdminPage() {
       fetchGenerations();
     }
   }, [isAdmin, selectedUserId]);
+
+  // Fetch audit logs
+  useEffect(() => {
+    async function fetchAuditLogs() {
+      try {
+        const res = await fetch("/api/admin/audit");
+        if (res.ok) {
+          const data = await res.json();
+          setAuditLogs(data.logs || []);
+        }
+      } catch {
+        console.error("Failed to fetch audit logs");
+      }
+    }
+
+    if (isAdmin) {
+      fetchAuditLogs();
+    }
+  }, [isAdmin, addAdminSuccess]);
 
   async function handleAddAdmin(e: React.FormEvent) {
     e.preventDefault();
@@ -236,7 +265,7 @@ export default function AdminPage() {
       </div>
 
       {/* Add Admin Section */}
-      <div className="card p-6">
+      <div className="card p-6 mb-8">
         <h2 className="text-xl text-[#d4af37] mb-4">Add Admin</h2>
         <form onSubmit={handleAddAdmin} className="flex gap-4 items-end">
           <div className="flex-1 max-w-md">
@@ -263,6 +292,43 @@ export default function AdminPage() {
         )}
         {addAdminSuccess && (
           <p className="text-green-400 text-sm mt-2">{addAdminSuccess}</p>
+        )}
+      </div>
+
+      {/* Audit Trail */}
+      <div className="card p-6">
+        <h2 className="text-xl text-[#d4af37] mb-4">Audit Trail</h2>
+        {auditLogs.length === 0 ? (
+          <p className="text-[#666]">No audit logs yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#333]">
+                  <th className="text-left py-2 px-3 text-[#888]">Date</th>
+                  <th className="text-left py-2 px-3 text-[#888]">Action</th>
+                  <th className="text-left py-2 px-3 text-[#888]">Actor</th>
+                  <th className="text-left py-2 px-3 text-[#888]">Target</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map((log) => (
+                  <tr key={log.id} className="border-b border-[#222]">
+                    <td className="py-2 px-3 text-[#666]">
+                      {new Date(log.created_at).toLocaleString()}
+                    </td>
+                    <td className="py-2 px-3">
+                      <span className="px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#d4af37] text-xs">
+                        {log.action.replace(/_/g, " ")}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-[#ededed]">{log.actor_email}</td>
+                    <td className="py-2 px-3 text-[#888]">{log.target_email || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
