@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     const user = await getOrCreateUser(clerkId);
 
-    const { prompt, referenceImage, demoPassword } = await request.json();
+    const { prompt, referenceImages, demoPassword } = await request.json();
 
     // Verify demo password if set
     if (DEMO_PASSWORD && demoPassword !== DEMO_PASSWORD) {
@@ -62,7 +62,9 @@ export async function POST(request: NextRequest) {
       prompt: `Create a vintage 1940s style video. ${prompt}`,
     };
 
-    // Check if reference image is provided for image-to-video
+    // Check if reference image is provided for image-to-video (use first image only)
+    const refs = Array.isArray(referenceImages) ? referenceImages : [];
+    const referenceImage = refs[0];
     if (referenceImage) {
       try {
         let base64Image: string;

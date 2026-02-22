@@ -16,8 +16,8 @@ export default function Home() {
   const { isSignedIn } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<"image" | "video">("image");
-  const [selectedRef, setSelectedRef] = useState<string | null>(null);
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [selectedRefs, setSelectedRefs] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [image, setImage] = useState<{ mimeType: string; data: string } | null>(null);
   const [video, setVideo] = useState<{ mimeType: string; data: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,10 +52,28 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
-      setUploadedImage(dataUrl);
-      setSelectedRef(dataUrl);
+      setUploadedImages((prev) => [...prev, dataUrl]);
+      // Auto-select if under limit
+      if (selectedRefs.length < 3) {
+        setSelectedRefs((prev) => [...prev, dataUrl]);
+      }
     };
     reader.readAsDataURL(file);
+    // Reset input so same file can be uploaded again
+    e.target.value = "";
+  }
+
+  // Toggle image selection (max 3)
+  function toggleImageSelection(src: string) {
+    setSelectedRefs((prev) => {
+      if (prev.includes(src)) {
+        return prev.filter((s) => s !== src);
+      }
+      if (prev.length >= 3) {
+        return prev; // Max 3 images
+      }
+      return [...prev, src];
+    });
   }
 
   async function handlePasswordSubmit(e: React.FormEvent) {
@@ -153,7 +171,7 @@ export default function Home() {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, referenceImage: selectedRef, demoPassword }),
+        body: JSON.stringify({ prompt, referenceImages: selectedRefs, demoPassword }),
       });
 
       const data = await res.json();
@@ -473,13 +491,18 @@ export default function Home() {
 
         {/* Reference Image Picker */}
         <div className="mb-4">
-          <p className="text-sm text-[#888] mb-2">Reference image (optional):</p>
+          <p className="text-sm text-[#888] mb-2">
+            Reference images (optional, select up to 3):
+            {selectedRefs.length > 0 && (
+              <span className="text-[#d4af37] ml-2">{selectedRefs.length}/3 selected</span>
+            )}
+          </p>
           <div className="flex gap-2 overflow-x-auto pb-2">
             <button
               type="button"
-              onClick={() => setSelectedRef(null)}
+              onClick={() => setSelectedRefs([])}
               className={`flex-shrink-0 w-16 h-16 rounded border-2 flex items-center justify-center text-xs ${
-                selectedRef === null
+                selectedRefs.length === 0
                   ? "border-[#d4af37] bg-[#1a1a1a]"
                   : "border-[#333] bg-[#111]"
               }`}
@@ -508,31 +531,37 @@ export default function Home() {
                 />
               </svg>
             </label>
-            {/* Uploaded image */}
-            {uploadedImage && (
+            {/* Uploaded images */}
+            {uploadedImages.map((img, index) => (
               <button
+                key={`uploaded-${index}`}
                 type="button"
-                onClick={() => setSelectedRef(uploadedImage)}
-                className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
-                  selectedRef === uploadedImage
+                onClick={() => toggleImageSelection(img)}
+                className={`relative flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                  selectedRefs.includes(img)
                     ? "border-[#d4af37]"
                     : "border-[#333]"
                 }`}
               >
                 <img
-                  src={uploadedImage}
-                  alt="Uploaded"
+                  src={img}
+                  alt={`Uploaded ${index + 1}`}
                   className="w-full h-full object-cover"
                 />
+                {selectedRefs.includes(img) && (
+                  <div className="absolute top-0 right-0 bg-[#d4af37] text-black text-xs w-5 h-5 flex items-center justify-center rounded-bl">
+                    {selectedRefs.indexOf(img) + 1}
+                  </div>
+                )}
               </button>
-            )}
+            ))}
             {referenceImages.map((img) => (
               <button
                 key={img.id}
                 type="button"
-                onClick={() => setSelectedRef(img.src)}
-                className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
-                  selectedRef === img.src
+                onClick={() => toggleImageSelection(img.src)}
+                className={`relative flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                  selectedRefs.includes(img.src)
                     ? "border-[#d4af37]"
                     : "border-[#333]"
                 }`}
@@ -542,6 +571,11 @@ export default function Home() {
                   alt={img.name}
                   className="w-full h-full object-cover"
                 />
+                {selectedRefs.includes(img.src) && (
+                  <div className="absolute top-0 right-0 bg-[#d4af37] text-black text-xs w-5 h-5 flex items-center justify-center rounded-bl">
+                    {selectedRefs.indexOf(img.src) + 1}
+                  </div>
+                )}
               </button>
             ))}
           </div>

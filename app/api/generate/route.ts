@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const user = await getOrCreateUser(clerkId);
 
-    const { prompt, referenceImage, demoPassword } = await request.json();
+    const { prompt, referenceImages, demoPassword } = await request.json();
 
     // Verify demo password if set
     if (DEMO_PASSWORD && demoPassword !== DEMO_PASSWORD) {
@@ -47,42 +47,45 @@ export async function POST(request: NextRequest) {
     // Build the parts array for Gemini
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
 
-    // If reference image provided, include it
-    if (referenceImage) {
-      try {
-        let base64Image: string;
-        let mimeType: string;
+    // If reference images provided, include them
+    const refs = Array.isArray(referenceImages) ? referenceImages : [];
+    if (refs.length > 0) {
+      for (const refImage of refs) {
+        try {
+          let base64Image: string;
+          let mimeType: string;
 
-        // Check if it's a data URL (uploaded image)
-        if (referenceImage.startsWith("data:")) {
-          const matches = referenceImage.match(/^data:([^;]+);base64,(.+)$/);
-          if (matches) {
-            mimeType = matches[1];
-            base64Image = matches[2];
+          // Check if it's a data URL (uploaded image)
+          if (refImage.startsWith("data:")) {
+            const matches = refImage.match(/^data:([^;]+);base64,(.+)$/);
+            if (matches) {
+              mimeType = matches[1];
+              base64Image = matches[2];
+            } else {
+              throw new Error("Invalid data URL format");
+            }
           } else {
-            throw new Error("Invalid data URL format");
+            // It's a file path - read from public directory
+            const imagePath = path.join(process.cwd(), "public", refImage);
+            const imageBuffer = await readFile(imagePath);
+            base64Image = imageBuffer.toString("base64");
+            mimeType = refImage.endsWith(".png") ? "image/png" : "image/jpeg";
           }
-        } else {
-          // It's a file path - read from public directory
-          const imagePath = path.join(process.cwd(), "public", referenceImage);
-          const imageBuffer = await readFile(imagePath);
-          base64Image = imageBuffer.toString("base64");
-          mimeType = referenceImage.endsWith(".png") ? "image/png" : "image/jpeg";
-        }
 
-        parts.push({
-          inlineData: {
-            mimeType,
-            data: base64Image,
-          },
-        });
-        parts.push({
-          text: `Use this reference image as style inspiration. ${prompt}`,
-        });
-      } catch (err) {
-        console.error("Failed to read reference image:", err);
-        parts.push({ text: prompt });
+          parts.push({
+            inlineData: {
+              mimeType,
+              data: base64Image,
+            },
+          });
+        } catch (err) {
+          console.error("Failed to read reference image:", err);
+        }
       }
+      const imageCount = refs.length === 1 ? "this reference image" : "these reference images";
+      parts.push({
+        text: `Use ${imageCount} as style inspiration. ${prompt}`,
+      });
     } else {
       parts.push({ text: prompt });
     }
@@ -150,7 +153,7 @@ export async function POST(request: NextRequest) {
     await saveGeneration({
       userId: user.id,
       prompt,
-      sourceUrl: referenceImage || undefined,
+      sourceUrl: refs.length > 0 ? refs[0] : undefined,
       resultUrl: key,
       type: "image",
     });
