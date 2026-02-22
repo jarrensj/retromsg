@@ -1,6 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
-import { isAdmin, removeAdmin, logAuditAction } from "@/lib/supabase";
+import { isAdmin, removeAdmin, logAuditAction, getAdmins } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,6 +29,15 @@ export async function POST(request: NextRequest) {
     if (email.toLowerCase() === adminEmail.toLowerCase()) {
       return NextResponse.json(
         { error: "You cannot remove yourself as admin" },
+        { status: 400 }
+      );
+    }
+
+    // Prevent removing the last admin
+    const admins = await getAdmins();
+    if (admins.length <= 1) {
+      return NextResponse.json(
+        { error: "Cannot remove the last admin" },
         { status: 400 }
       );
     }
