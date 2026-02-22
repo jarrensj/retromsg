@@ -4,6 +4,7 @@ export type Generation = {
   id: string;
   prompt: string;
   source_url: string | null;
+  reference_images?: string[];
   result_url: string;
   type?: "image" | "video";
   created_at: string;
@@ -104,6 +105,35 @@ export default function GenerationsGallery({
             <p className="text-sm text-[#888] truncate" title={gen.prompt}>
               {gen.prompt}
             </p>
+            {showUserEmail && gen.reference_images && gen.reference_images.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs text-[#666] mb-1">
+                  Reference images ({gen.reference_images.length}):
+                </p>
+                <div className="flex gap-1 flex-wrap">
+                  {gen.reference_images.map((img, idx) => (
+                    <div key={idx} className="relative group">
+                      {img.startsWith("data:") ? (
+                        <img
+                          src={img}
+                          alt={`Reference ${idx + 1}`}
+                          className="w-10 h-10 object-cover rounded border border-[#333]"
+                        />
+                      ) : (
+                        <img
+                          src={img}
+                          alt={`Reference ${idx + 1}`}
+                          className="w-10 h-10 object-cover rounded border border-[#333]"
+                        />
+                      )}
+                      <span className="absolute -top-1 -right-1 text-[8px] bg-[#d4af37] text-black px-1 rounded">
+                        {idx + 1}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {!showUserEmail && (
               <p className="text-xs text-[#666] mt-1">
                 {new Date(gen.created_at).toLocaleDateString()}

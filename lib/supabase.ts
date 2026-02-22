@@ -106,12 +106,14 @@ export async function saveGeneration({
   userId,
   prompt,
   sourceUrl,
+  referenceImages,
   resultUrl,
   type = "image",
 }: {
   userId: string;
   prompt: string;
   sourceUrl?: string;
+  referenceImages?: string[];
   resultUrl: string;
   type?: "image" | "video";
 }) {
@@ -121,6 +123,7 @@ export async function saveGeneration({
       user_id: userId,
       prompt,
       source_url: sourceUrl,
+      reference_images: referenceImages || [],
       result_url: resultUrl,
       type,
     })
@@ -138,7 +141,7 @@ export async function saveGeneration({
 export async function getUserGenerations(userId: string, limit = 50) {
   const { data, error } = await supabaseAdmin
     .from("generations")
-    .select("id, prompt, source_url, result_url, type, created_at")
+    .select("id, prompt, source_url, reference_images, result_url, type, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -213,6 +216,7 @@ export async function getAllGenerations(userId?: string, limit = 100) {
       id,
       prompt,
       source_url,
+      reference_images,
       result_url,
       type,
       created_at,

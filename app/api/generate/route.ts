@@ -154,6 +154,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       prompt,
       sourceUrl: refs.length > 0 ? refs[0] : undefined,
+      referenceImages: refs.length > 0 ? refs : undefined,
       resultUrl: key,
       type: "image",
     });
