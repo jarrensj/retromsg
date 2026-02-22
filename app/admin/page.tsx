@@ -64,6 +64,7 @@ export default function AdminPage() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState("");
+  const [expandedAuditLog, setExpandedAuditLog] = useState<string | null>(null);
 
   // Check admin status
   useEffect(() => {
@@ -532,33 +533,65 @@ export default function AdminPage() {
           {auditLogs.length === 0 ? (
             <p className="text-[#666]">No audit logs yet.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[#333]">
-                    <th className="text-left py-2 px-3 text-[#888]">Date</th>
-                    <th className="text-left py-2 px-3 text-[#888]">Action</th>
-                    <th className="text-left py-2 px-3 text-[#888]">Actor</th>
-                    <th className="text-left py-2 px-3 text-[#888]">Target</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {auditLogs.map((log) => (
-                    <tr key={log.id} className="border-b border-[#222]">
-                      <td className="py-2 px-3 text-[#666]">
+            <div className="space-y-3">
+              {auditLogs.map((log) => {
+                const hasDetails = log.details && (log.details as { old?: string }).old;
+                const isExpanded = expandedAuditLog === log.id;
+                const details = log.details as { old?: string; new?: string } | null;
+
+                return (
+                  <div
+                    key={log.id}
+                    className={`border border-[#333] rounded p-3 ${
+                      hasDetails ? "cursor-pointer hover:border-[#444]" : ""
+                    }`}
+                    onClick={() => {
+                      if (hasDetails) {
+                        setExpandedAuditLog(isExpanded ? null : log.id);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#d4af37] text-xs">
+                        {log.action.replace(/_/g, " ")}
+                      </span>
+                      <span className="text-[#ededed] text-sm">{log.actor_email}</span>
+                      {log.target_email && (
+                        <span className="text-[#888] text-sm">→ {log.target_email}</span>
+                      )}
+                      <span className="text-[#666] text-xs ml-auto">
                         {new Date(log.created_at).toLocaleString()}
-                      </td>
-                      <td className="py-2 px-3">
-                        <span className="px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#d4af37] text-xs">
-                          {log.action.replace(/_/g, " ")}
+                      </span>
+                      {hasDetails && (
+                        <span className="text-[#888] text-xs">
+                          {isExpanded ? "▼" : "▶"}
                         </span>
-                      </td>
-                      <td className="py-2 px-3 text-[#ededed]">{log.actor_email}</td>
-                      <td className="py-2 px-3 text-[#888]">{log.target_email || "-"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      )}
+                    </div>
+                    {hasDetails && !isExpanded && (
+                      <div className="mt-2 text-xs text-[#666]">
+                        Click to view changes...
+                      </div>
+                    )}
+                    {hasDetails && isExpanded && details && (
+                      <div className="mt-3 space-y-3">
+                        <div>
+                          <div className="text-red-400 text-xs font-medium mb-1">Old:</div>
+                          <div className="text-[#888] text-sm bg-[#1a1a1a] p-3 rounded whitespace-pre-wrap break-words">
+                            {details.old}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-green-400 text-xs font-medium mb-1">New:</div>
+                          <div className="text-[#ededed] text-sm bg-[#1a1a1a] p-3 rounded whitespace-pre-wrap break-words">
+                            {details.new}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

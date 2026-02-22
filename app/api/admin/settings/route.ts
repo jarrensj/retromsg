@@ -51,25 +51,40 @@ export async function POST(request: NextRequest) {
 
     const { imagePrompt, videoPrompt } = await request.json();
 
+    // Get current prompts to log the change
+    const currentPrompts = await getDefaultPrompts();
+
     if (typeof imagePrompt === "string" && imagePrompt.trim()) {
-      await updateSetting("default_image_prompt", imagePrompt.trim(), adminEmail);
+      const oldValue = currentPrompts.image;
+      const newValue = imagePrompt.trim();
+      if (oldValue !== newValue) {
+        await updateSetting("default_image_prompt", newValue, adminEmail);
+        await logAuditAction({
+          action: "image_prompt_updated",
+          actorEmail: adminEmail,
+          details: {
+            old: oldValue,
+            new: newValue,
+          },
+        });
+      }
     }
 
     if (typeof videoPrompt === "string" && videoPrompt.trim()) {
-      await updateSetting("default_video_prompt", videoPrompt.trim(), adminEmail);
+      const oldValue = currentPrompts.video;
+      const newValue = videoPrompt.trim();
+      if (oldValue !== newValue) {
+        await updateSetting("default_video_prompt", newValue, adminEmail);
+        await logAuditAction({
+          action: "video_prompt_updated",
+          actorEmail: adminEmail,
+          details: {
+            old: oldValue,
+            new: newValue,
+          },
+        });
+      }
     }
-
-    // Log the action
-    await logAuditAction({
-      action: "settings_updated",
-      actorEmail: adminEmail,
-      details: {
-        updated: [
-          imagePrompt ? "default_image_prompt" : null,
-          videoPrompt ? "default_video_prompt" : null,
-        ].filter(Boolean),
-      },
-    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
