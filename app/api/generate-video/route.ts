@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     const instance: VeoInstance = {
-      prompt: `Create a vintage 1940s style video. ${prompt}`,
+      prompt: `Create a vintage 1940s style video. ${prompt}. Add authentic film aging effects: random dust particles floating across the frame, film grain texture, light scratches and scuff marks on the film, slightly faded colors with a sepia-warm tone, and occasional film flicker.`,
     };
 
     // Check if reference image is provided for image-to-video (use first image only)
