@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { readFile } from "fs/promises";
 import path from "path";
-import { getOrCreateUser, saveGeneration, deductCredits } from "@/lib/supabase";
+import { getOrCreateUser, saveGeneration, deductCredits, getDefaultPrompts } from "@/lib/supabase";
 import { s3, BUCKET } from "@/lib/s3";
 import { CREDIT_COSTS } from "@/lib/stripe";
 
@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get default prompt from database
+    const defaultPrompts = await getDefaultPrompts();
+
     // Build the request for Veo API
     interface VeoInstance {
       prompt: string;
@@ -59,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     const instance: VeoInstance = {
-      prompt: `Create a vintage 1940s style video. ${prompt}. Add authentic film aging effects: random dust particles floating across the frame, film grain texture, light scratches and scuff marks on the film, slightly faded colors with a sepia-warm tone, and occasional film flicker.`,
+      prompt: `${defaultPrompts.video} ${prompt}`,
     };
 
     // Check if reference image is provided for image-to-video (use first image only)

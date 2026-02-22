@@ -357,3 +357,66 @@ export async function getAllCreditPurchases(limit = 100) {
 
   return data;
 }
+
+// ============ Settings Functions ============
+
+// Get a setting value by key
+export async function getSetting(key: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("settings")
+    .select("value")
+    .eq("key", key)
+    .single();
+
+  return data?.value ?? null;
+}
+
+// Update a setting value
+export async function updateSetting(
+  key: string,
+  value: string,
+  updatedBy: string
+) {
+  const { error } = await supabaseAdmin
+    .from("settings")
+    .upsert({
+      key,
+      value,
+      updated_at: new Date().toISOString(),
+      updated_by: updatedBy,
+    });
+
+  if (error) {
+    throw new Error(`Failed to update setting: ${error.message}`);
+  }
+}
+
+// Get default prompts for generation
+export async function getDefaultPrompts(): Promise<{
+  image: string;
+  video: string;
+}> {
+  const { data } = await supabaseAdmin
+    .from("settings")
+    .select("key, value")
+    .in("key", ["default_image_prompt", "default_video_prompt"]);
+
+  const prompts = {
+    image:
+      "Create a vintage 1940s style photograph. Add authentic film aging effects: random dust particles scattered across the image, subtle film grain texture, light scratches and scuff marks, slightly faded colors with a sepia-warm tone, and a dusty film overlay.",
+    video:
+      "Create a vintage 1940s style video. Add authentic film aging effects: random dust particles floating across the frame, film grain texture, light scratches and scuff marks on the film, slightly faded colors with a sepia-warm tone, and occasional film flicker.",
+  };
+
+  if (data) {
+    for (const setting of data) {
+      if (setting.key === "default_image_prompt") {
+        prompts.image = setting.value;
+      } else if (setting.key === "default_video_prompt") {
+        prompts.video = setting.value;
+      }
+    }
+  }
+
+  return prompts;
+}
