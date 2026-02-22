@@ -10,10 +10,10 @@ export const CREDIT_PACKAGES = {
     name: "Starter Pack",
     description: "10 credits for retroAI generations",
   },
-  popular: {
+  plus: {
     credits: 25,
     amount: 1000, // $10
-    name: "Popular Pack",
+    name: "Plus Pack",
     description: "25 credits for retroAI generations",
   },
   pro: {
