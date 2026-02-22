@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
     await saveGeneration({
       userId: user.id,
       prompt,
+      basePrompt: defaultPrompts.image,
       sourceUrl: refs.length > 0 ? refs[0] : undefined,
       referenceImages: refs.length > 0 ? refs : undefined,
       resultUrl: key,
