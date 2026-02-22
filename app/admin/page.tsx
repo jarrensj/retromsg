@@ -28,7 +28,19 @@ type Admin = {
   created_by: string | null;
 };
 
-type Tab = "gallery" | "admins" | "audit";
+type CreditPurchase = {
+  id: string;
+  credits: number;
+  amount_cents: number;
+  stripe_session_id: string | null;
+  created_at: string;
+  user_id: string;
+  users: {
+    email: string;
+  } | null;
+};
+
+type Tab = "gallery" | "purchases" | "admins" | "audit";
 
 export default function AdminPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -46,6 +58,7 @@ export default function AdminPage() {
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [adminRefreshKey, setAdminRefreshKey] = useState(0);
   const [removingAdminEmail, setRemovingAdminEmail] = useState<string | null>(null);
+  const [purchases, setPurchases] = useState<CreditPurchase[]>([]);
 
   // Check admin status
   useEffect(() => {
@@ -146,6 +159,25 @@ export default function AdminPage() {
     }
   }, [isAdmin, adminRefreshKey]);
 
+  // Fetch credit purchases
+  useEffect(() => {
+    async function fetchPurchases() {
+      try {
+        const res = await fetch("/api/admin/purchases");
+        if (res.ok) {
+          const data = await res.json();
+          setPurchases(data.purchases || []);
+        }
+      } catch {
+        console.error("Failed to fetch purchases");
+      }
+    }
+
+    if (isAdmin) {
+      fetchPurchases();
+    }
+  }, [isAdmin]);
+
   async function handleAddAdmin(e: React.FormEvent) {
     e.preventDefault();
     setAddAdminError("");
@@ -245,6 +277,7 @@ export default function AdminPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "gallery", label: "Gallery" },
+    { id: "purchases", label: "Purchases" },
     { id: "admins", label: "Admins" },
     { id: "audit", label: "Audit Trail" },
   ];
@@ -306,6 +339,50 @@ export default function AdminPage() {
             />
           </div>
         </>
+      )}
+
+      {/* Purchases Tab */}
+      {activeTab === "purchases" && (
+        <div className="card p-6">
+          <h2 className="text-xl text-[#d4af37] mb-4">
+            Credit Purchases
+            <span className="text-sm text-[#888] ml-2">({purchases.length})</span>
+          </h2>
+          {purchases.length === 0 ? (
+            <p className="text-[#666]">No purchases yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#333]">
+                    <th className="text-left py-2 px-3 text-[#888]">Date</th>
+                    <th className="text-left py-2 px-3 text-[#888]">User</th>
+                    <th className="text-right py-2 px-3 text-[#888]">Credits</th>
+                    <th className="text-right py-2 px-3 text-[#888]">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {purchases.map((purchase) => (
+                    <tr key={purchase.id} className="border-b border-[#222]">
+                      <td className="py-2 px-3 text-[#666]">
+                        {new Date(purchase.created_at).toLocaleString()}
+                      </td>
+                      <td className="py-2 px-3 text-[#ededed]">
+                        {purchase.users?.email || "-"}
+                      </td>
+                      <td className="py-2 px-3 text-right text-[#d4af37]">
+                        +{purchase.credits}
+                      </td>
+                      <td className="py-2 px-3 text-right text-green-400">
+                        ${(purchase.amount_cents / 100).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Admins Tab */}
