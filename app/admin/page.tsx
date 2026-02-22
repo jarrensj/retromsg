@@ -274,7 +274,7 @@ export default function AdminPage() {
               type="email"
               value={newAdminEmail}
               onChange={(e) => setNewAdminEmail(e.target.value)}
-              placeholder="admin@example.com"
+              placeholder="admin@retromsg.com"
               className="w-full p-3"
               required
             />
