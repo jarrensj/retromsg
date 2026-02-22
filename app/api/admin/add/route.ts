@@ -34,6 +34,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if already an admin
+    if (await isAdmin(email)) {
+      return NextResponse.json(
+        { error: "This email is already an admin" },
+        { status: 400 }
+      );
+    }
+
     await addAdmin(email, adminEmail);
 
     // Log the action
