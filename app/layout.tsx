@@ -10,6 +10,7 @@ import {
   UserButton,
 } from "@clerk/nextjs";
 import HeaderCredits from "@/components/HeaderCredits";
+import NavLink from "@/components/NavLink";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
@@ -54,6 +55,7 @@ export default function RootLayout({
                 </SignUpButton>
               </SignedOut>
               <SignedIn>
+                <NavLink />
                 <HeaderCredits />
                 <UserButton />
               </SignedIn>
