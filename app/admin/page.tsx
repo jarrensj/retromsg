@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
+import GenerationsGallery, { Generation } from "@/components/GenerationsGallery";
 
 type User = {
   id: string;
@@ -9,20 +10,6 @@ type User = {
   email: string;
   credits: number;
   created_at: string;
-};
-
-type Generation = {
-  id: string;
-  prompt: string;
-  source_url: string | null;
-  result_url: string;
-  type: "image" | "video";
-  created_at: string;
-  user_id: string;
-  users: {
-    email: string;
-    clerk_id: string;
-  };
 };
 
 type AuditLog = {
@@ -221,47 +208,13 @@ export default function AdminPage() {
           </span>
         </h2>
 
-        {loadingGenerations ? (
-          <p className="text-[#888]">Loading generations...</p>
-        ) : generations.length === 0 ? (
-          <p className="text-[#666]">No generations found.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {generations.map((gen) => (
-              <div key={gen.id} className="card">
-                {gen.type === "video" ? (
-                  <video
-                    src={gen.result_url}
-                    className="w-full aspect-video object-cover"
-                    controls
-                  />
-                ) : (
-                  <img
-                    src={gen.result_url}
-                    alt={gen.prompt}
-                    className="w-full aspect-square object-cover"
-                  />
-                )}
-                <div className="p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#d4af37]">
-                      {gen.type === "video" ? "Video" : "Image"}
-                    </span>
-                    <span className="text-xs text-[#666]">
-                      {new Date(gen.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#888] mb-1 truncate" title={gen.users?.email}>
-                    {gen.users?.email || "Unknown user"}
-                  </p>
-                  <p className="text-sm text-[#888] truncate" title={gen.prompt}>
-                    {gen.prompt}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <GenerationsGallery
+          generations={generations}
+          loading={loadingGenerations}
+          showUserEmail={true}
+          emptyMessage="No generations found."
+          columns={4}
+        />
       </div>
 
       {/* Add Admin Section */}
