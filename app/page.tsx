@@ -17,6 +17,7 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<"image" | "video">("image");
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [image, setImage] = useState<{ mimeType: string; data: string } | null>(null);
   const [video, setVideo] = useState<{ mimeType: string; data: string } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -41,6 +42,20 @@ export default function Home() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  }
+
+  // Handle image upload
+  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setUploadedImage(dataUrl);
+      setSelectedRef(dataUrl);
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handlePasswordSubmit(e: React.FormEvent) {
@@ -471,6 +486,46 @@ export default function Home() {
             >
               None
             </button>
+            {/* Upload button */}
+            <label className="flex-shrink-0 w-16 h-16 rounded border-2 border-dashed flex items-center justify-center cursor-pointer transition-colors border-[#555] bg-[#111] hover:border-[#d4af37] hover:bg-[#1a1a1a]">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <svg
+                className="w-6 h-6 text-[#888]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </label>
+            {/* Uploaded image */}
+            {uploadedImage && (
+              <button
+                type="button"
+                onClick={() => setSelectedRef(uploadedImage)}
+                className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                  selectedRef === uploadedImage
+                    ? "border-[#d4af37]"
+                    : "border-[#333]"
+                }`}
+              >
+                <img
+                  src={uploadedImage}
+                  alt="Uploaded"
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            )}
             {referenceImages.map((img) => (
               <button
                 key={img.id}

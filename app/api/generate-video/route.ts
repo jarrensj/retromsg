@@ -65,10 +65,25 @@ export async function POST(request: NextRequest) {
     // Check if reference image is provided for image-to-video
     if (referenceImage) {
       try {
-        const imagePath = path.join(process.cwd(), "public", referenceImage);
-        const imageBuffer = await readFile(imagePath);
-        const base64Image = imageBuffer.toString("base64");
-        const mimeType = referenceImage.endsWith(".png") ? "image/png" : "image/jpeg";
+        let base64Image: string;
+        let mimeType: string;
+
+        // Check if it's a data URL (uploaded image)
+        if (referenceImage.startsWith("data:")) {
+          const matches = referenceImage.match(/^data:([^;]+);base64,(.+)$/);
+          if (matches) {
+            mimeType = matches[1];
+            base64Image = matches[2];
+          } else {
+            throw new Error("Invalid data URL format");
+          }
+        } else {
+          // It's a file path - read from public directory
+          const imagePath = path.join(process.cwd(), "public", referenceImage);
+          const imageBuffer = await readFile(imagePath);
+          base64Image = imageBuffer.toString("base64");
+          mimeType = referenceImage.endsWith(".png") ? "image/png" : "image/jpeg";
+        }
 
         instance.image = {
           bytesBase64Encoded: base64Image,
