@@ -2,17 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth, SignUpButton } from "@clerk/nextjs";
+import Link from "next/link";
 import { presets } from "@/lib/presets";
 import { referenceImages } from "@/lib/reference-images";
-
-type Generation = {
-  id: string;
-  prompt: string;
-  source_url: string | null;
-  result_url: string;
-  type?: "image" | "video";
-  created_at: string;
-};
 
 const CREDIT_PACKAGES = [
   { id: "starter", name: "Starter", price: 5, credits: 10 },
@@ -29,8 +21,6 @@ export default function Home() {
   const [video, setVideo] = useState<{ mimeType: string; data: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [generations, setGenerations] = useState<Generation[]>([]);
-  const [loadingGallery, setLoadingGallery] = useState(true);
   const [demoPassword, setDemoPassword] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passwordError, setPasswordError] = useState("");
@@ -47,17 +37,6 @@ export default function Home() {
   function downloadBase64(data: string, mimeType: string, filename: string) {
     const link = document.createElement("a");
     link.href = `data:${mimeType};base64,${data}`;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
-
-  // Download helper for URLs - uses API route to force download
-  function downloadUrl(url: string, filename: string) {
-    const downloadLink = `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
-    const link = document.createElement("a");
-    link.href = downloadLink;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
@@ -121,15 +100,8 @@ export default function Home() {
   const initializeUser = useCallback(async () => {
     try {
       await fetch("/api/user");
-      const genRes = await fetch("/api/generations");
-      if (genRes.ok) {
-        const genData = await genRes.json();
-        setGenerations(genData.generations || []);
-      }
     } catch {
       console.error("Failed to initialize user");
-    } finally {
-      setLoadingGallery(false);
     }
   }, []);
 
@@ -620,60 +592,13 @@ export default function Home() {
         </div>
       )}
 
-      <div className="border-t border-[#333] pt-8">
-        <h2 className="text-2xl text-[#d4af37] mb-6 text-center">Your Creations</h2>
-        {loadingGallery ? (
-          <p className="text-center text-[#888]">Loading...</p>
-        ) : generations.length === 0 ? (
-          <p className="text-center text-[#666]">
-            No creations yet. Generate your first one above!
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {generations.map((gen) => (
-              <div key={gen.id} className="card">
-                {gen.type === "video" ? (
-                  <video
-                    src={gen.result_url}
-                    className="w-full aspect-video object-cover"
-                    controls
-                  />
-                ) : (
-                  <img
-                    src={gen.result_url}
-                    alt={gen.prompt}
-                    className="w-full aspect-square object-cover"
-                  />
-                )}
-                <div className="p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs px-2 py-0.5 rounded bg-[#d4af37]/20 text-[#d4af37]">
-                      {gen.type === "video" ? "Video" : "Image"}
-                    </span>
-                    <button
-                      onClick={() => downloadUrl(
-                        gen.result_url,
-                        generateFilename(gen.type || "image")
-                      )}
-                      className="text-xs underline text-[#888] hover:text-[#d4af37] transition-colors"
-                    >
-                      Download
-                    </button>
-                  </div>
-                  <p
-                    className="text-sm text-[#888] truncate"
-                    title={gen.prompt}
-                  >
-                    {gen.prompt}
-                  </p>
-                  <p className="text-xs text-[#666] mt-1">
-                    {new Date(gen.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="border-t border-[#333] pt-8 text-center">
+        <Link
+          href="/gallery"
+          className="inline-block btn-primary px-8"
+        >
+          View Your Creations
+        </Link>
       </div>
     </div>
   );
