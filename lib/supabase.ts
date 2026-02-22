@@ -194,6 +194,18 @@ export async function addAdmin(email: string, createdBy: string) {
   }
 }
 
+// Remove an admin
+export async function removeAdmin(email: string) {
+  const { error } = await supabaseAdmin
+    .from("admins")
+    .delete()
+    .eq("email", email.toLowerCase());
+
+  if (error) {
+    throw new Error(`Failed to remove admin: ${error.message}`);
+  }
+}
+
 // Get all users (for admin panel)
 export async function getAllUsers() {
   const { data, error } = await supabaseAdmin
