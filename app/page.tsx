@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth, SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { presets } from "@/lib/presets";
+import { referenceImages } from "@/lib/reference-images";
 
 type PresetPhoto = {
   id: string;
@@ -607,6 +608,29 @@ export default function Home() {
                 </button>
               );
             })}
+            {referenceImages.map((img) => (
+              <button
+                key={img.id}
+                type="button"
+                onClick={() => toggleImageSelection(img.src)}
+                className={`relative flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                  selectedRefs.includes(img.src)
+                    ? "border-[#d4af37]"
+                    : "border-[#333]"
+                }`}
+              >
+                <img
+                  src={img.src}
+                  alt={img.name}
+                  className="w-full h-full object-cover"
+                />
+                {selectedRefs.includes(img.src) && (
+                  <div className="absolute top-0 right-0 bg-[#d4af37] text-black text-xs w-5 h-5 flex items-center justify-center rounded-bl">
+                    {selectedRefs.indexOf(img.src) + 1}
+                  </div>
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
