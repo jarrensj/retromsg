@@ -22,12 +22,28 @@ export async function GET(request: NextRequest) {
 
     const generations = await getAllGenerations(userId);
 
-    // Generate presigned URLs for each generation
+    // Generate presigned URLs for each generation and resolve s3: reference images
     const generationsWithUrls = await Promise.all(
       generations.map(async (gen) => {
         try {
           const presignedUrl = await getPresignedUrl(gen.result_url);
-          return { ...gen, result_url: presignedUrl };
+
+          const resolvedRefs = gen.reference_images
+            ? await Promise.all(
+                (gen.reference_images as string[]).map(async (ref: string) => {
+                  if (ref.startsWith("s3:")) {
+                    try {
+                      return await getPresignedUrl(ref.slice(3));
+                    } catch {
+                      return ref;
+                    }
+                  }
+                  return ref;
+                })
+              )
+            : gen.reference_images;
+
+          return { ...gen, result_url: presignedUrl, reference_images: resolvedRefs };
         } catch {
           return gen;
         }
