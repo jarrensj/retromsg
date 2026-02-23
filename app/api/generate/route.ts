@@ -4,7 +4,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { readFile } from "fs/promises";
 import path from "path";
 import { getOrCreateUser, saveGeneration, deductCredits, getDefaultPrompts } from "@/lib/supabase";
-import { s3, BUCKET } from "@/lib/s3";
+import { s3, BUCKET, getS3Object } from "@/lib/s3";
 import { CREDIT_COSTS } from "@/lib/stripe";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
@@ -70,6 +70,12 @@ export async function POST(request: NextRequest) {
             } else {
               throw new Error("Invalid data URL format");
             }
+          } else if (refImage.startsWith("s3:")) {
+            // It's an S3 key - fetch from S3
+            const s3Key = refImage.slice(3);
+            const s3Obj = await getS3Object(s3Key);
+            base64Image = s3Obj.body.toString("base64");
+            mimeType = s3Obj.contentType;
           } else {
             // It's a file path - read from public directory
             const imagePath = path.join(process.cwd(), "public", refImage);
