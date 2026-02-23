@@ -1,8 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import GenerationsGallery, { Generation } from "@/components/GenerationsGallery";
+
+type PresetPhoto = {
+  key: string;
+  name: string;
+  url: string;
+  size: number;
+  lastModified: string;
+};
 
 type User = {
   id: string;
@@ -40,7 +48,7 @@ type CreditPurchase = {
   } | null;
 };
 
-type Tab = "gallery" | "purchases" | "admins" | "audit" | "settings";
+type Tab = "gallery" | "photos" | "purchases" | "admins" | "audit" | "settings";
 
 export default function AdminPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -65,6 +73,16 @@ export default function AdminPage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState("");
   const [expandedAuditLog, setExpandedAuditLog] = useState<string | null>(null);
+
+  // Photos tab state
+  const [presetPhotos, setPresetPhotos] = useState<PresetPhoto[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoName, setPhotoName] = useState("");
+  const [photoMessage, setPhotoMessage] = useState("");
+  const [deletingPhotoKey, setDeletingPhotoKey] = useState<string | null>(null);
+  const [photosRefreshKey, setPhotosRefreshKey] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check admin status
   useEffect(() => {
@@ -207,6 +225,102 @@ export default function AdminPage() {
     }
   }, [isAdmin]);
 
+  // Fetch preset photos
+  useEffect(() => {
+    async function fetchPhotos() {
+      setPhotosLoading(true);
+      try {
+        const res = await fetch("/api/admin/photos");
+        if (res.ok) {
+          const data = await res.json();
+          setPresetPhotos(data.photos || []);
+        }
+      } catch {
+        console.error("Failed to fetch preset photos");
+      } finally {
+        setPhotosLoading(false);
+      }
+    }
+
+    if (isAdmin) {
+      fetchPhotos();
+    }
+  }, [isAdmin, photosRefreshKey]);
+
+  async function handlePhotoUpload(e: React.FormEvent) {
+    e.preventDefault();
+    const fileInput = fileInputRef.current;
+    const file = fileInput?.files?.[0];
+
+    if (!file) {
+      setPhotoMessage("Error: Please select a file");
+      return;
+    }
+
+    setPhotoUploading(true);
+    setPhotoMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (photoName.trim()) {
+        formData.append("name", photoName.trim());
+      }
+
+      const res = await fetch("/api/admin/photos", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPhotoMessage(`Error: ${data.error || "Upload failed"}`);
+        return;
+      }
+
+      setPhotoMessage("Photo uploaded successfully!");
+      setPhotoName("");
+      if (fileInput) fileInput.value = "";
+      setPhotosRefreshKey((k) => k + 1);
+    } catch {
+      setPhotoMessage("Error: Something went wrong");
+    } finally {
+      setPhotoUploading(false);
+    }
+  }
+
+  async function handleDeletePhoto(key: string) {
+    if (!confirm("Are you sure you want to delete this preset photo?")) {
+      return;
+    }
+
+    setDeletingPhotoKey(key);
+    setPhotoMessage("");
+
+    try {
+      const res = await fetch("/api/admin/photos", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPhotoMessage(`Error: ${data.error || "Delete failed"}`);
+        return;
+      }
+
+      setPhotoMessage("Photo deleted successfully!");
+      setPhotosRefreshKey((k) => k + 1);
+    } catch {
+      setPhotoMessage("Error: Something went wrong");
+    } finally {
+      setDeletingPhotoKey(null);
+    }
+  }
+
   async function handleAddAdmin(e: React.FormEvent) {
     e.preventDefault();
     setAddAdminError("");
@@ -335,6 +449,7 @@ export default function AdminPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "gallery", label: "Gallery" },
+    { id: "photos", label: "Photos" },
     { id: "purchases", label: "Purchases" },
     { id: "admins", label: "Admins" },
     { id: "audit", label: "Audit Trail" },
@@ -396,6 +511,125 @@ export default function AdminPage() {
               emptyMessage="No generations found."
               columns={4}
             />
+          </div>
+        </>
+      )}
+
+      {/* Photos Tab */}
+      {activeTab === "photos" && (
+        <>
+          {/* Upload Form */}
+          <div className="card p-6 mb-6">
+            <h2 className="text-xl text-[#d4af37] mb-4">Upload Preset Photo</h2>
+            <p className="text-[#888] text-sm mb-4">
+              Upload images that users can select as reference presets on the generate form.
+            </p>
+            <form onSubmit={handlePhotoUpload} className="space-y-4">
+              <div>
+                <label className="block text-sm text-[#888] mb-2">
+                  Display Name (optional)
+                </label>
+                <input
+                  type="text"
+                  value={photoName}
+                  onChange={(e) => setPhotoName(e.target.value)}
+                  placeholder="e.g. Vintage Car"
+                  className="w-full max-w-md p-3"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[#888] mb-2">
+                  Image File
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="w-full max-w-md p-3 text-[#ededed] file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-[#333] file:text-[#ededed] hover:file:bg-[#444]"
+                  required
+                />
+                <p className="text-xs text-[#666] mt-1">
+                  JPEG, PNG, GIF, or WebP. Max 10MB.
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <button
+                  type="submit"
+                  disabled={photoUploading}
+                  className="btn-primary px-6"
+                >
+                  {photoUploading ? "Uploading..." : "Upload Photo"}
+                </button>
+                {photoMessage && (
+                  <p
+                    className={`text-sm ${
+                      photoMessage.startsWith("Error")
+                        ? "text-red-400"
+                        : "text-green-400"
+                    }`}
+                  >
+                    {photoMessage}
+                  </p>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Photos Grid */}
+          <div className="card p-6">
+            <h2 className="text-xl text-[#d4af37] mb-4">
+              Preset Photos
+              <span className="text-sm text-[#888] ml-2">
+                ({presetPhotos.length})
+              </span>
+            </h2>
+            {photosLoading ? (
+              <p className="text-[#666]">Loading photos...</p>
+            ) : presetPhotos.length === 0 ? (
+              <p className="text-[#666]">
+                No preset photos uploaded yet. Upload photos above to make them
+                available as reference images on the generate form.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {presetPhotos.map((photo) => (
+                  <div
+                    key={photo.key}
+                    className="border border-[#333] rounded overflow-hidden group"
+                  >
+                    <div className="aspect-square relative">
+                      <img
+                        src={photo.url}
+                        alt={photo.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="p-2">
+                      <p
+                        className="text-xs text-[#ededed] truncate"
+                        title={photo.name}
+                      >
+                        {photo.name}
+                      </p>
+                      <p className="text-xs text-[#666]">
+                        {photo.size > 1024 * 1024
+                          ? `${(photo.size / (1024 * 1024)).toFixed(1)}MB`
+                          : `${Math.round(photo.size / 1024)}KB`}
+                      </p>
+                      <button
+                        onClick={() => handleDeletePhoto(photo.key)}
+                        disabled={deletingPhotoKey === photo.key}
+                        className="text-red-400 hover:text-red-300 text-xs mt-1 disabled:opacity-50"
+                      >
+                        {deletingPhotoKey === photo.key
+                          ? "Deleting..."
+                          : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

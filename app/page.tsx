@@ -4,7 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth, SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { presets } from "@/lib/presets";
-import { referenceImages } from "@/lib/reference-images";
+
+type PresetPhoto = {
+  id: string;
+  name: string;
+  key: string;
+  url: string;
+};
 
 const CREDIT_PACKAGES = [
   { id: "starter", name: "Starter", price: 5, credits: 10 },
@@ -27,6 +33,7 @@ export default function Home() {
   const [passwordError, setPasswordError] = useState("");
   const [showPricing, setShowPricing] = useState(false);
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
+  const [presetPhotos, setPresetPhotos] = useState<PresetPhoto[]>([]);
 
   // Generate filename
   function generateFilename(type: "image" | "video") {
@@ -143,6 +150,25 @@ export default function Home() {
       initializeUser();
     }
   }, [isSignedIn, initializeUser]);
+
+  // Fetch preset photos from S3
+  useEffect(() => {
+    async function fetchPresetPhotos() {
+      try {
+        const res = await fetch("/api/photos");
+        if (res.ok) {
+          const data = await res.json();
+          setPresetPhotos(data.photos || []);
+        }
+      } catch {
+        console.error("Failed to fetch preset photos");
+      }
+    }
+
+    if (isSignedIn) {
+      fetchPresetPhotos();
+    }
+  }, [isSignedIn]);
 
   // Handle Stripe redirect
   useEffect(() => {
@@ -555,29 +581,32 @@ export default function Home() {
                 )}
               </button>
             ))}
-            {referenceImages.map((img) => (
-              <button
-                key={img.id}
-                type="button"
-                onClick={() => toggleImageSelection(img.src)}
-                className={`relative flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
-                  selectedRefs.includes(img.src)
-                    ? "border-[#d4af37]"
-                    : "border-[#333]"
-                }`}
-              >
-                <img
-                  src={img.src}
-                  alt={img.name}
-                  className="w-full h-full object-cover"
-                />
-                {selectedRefs.includes(img.src) && (
-                  <div className="absolute top-0 right-0 bg-[#d4af37] text-black text-xs w-5 h-5 flex items-center justify-center rounded-bl">
-                    {selectedRefs.indexOf(img.src) + 1}
-                  </div>
-                )}
-              </button>
-            ))}
+            {presetPhotos.map((photo) => {
+              const refId = `s3:${photo.key}`;
+              return (
+                <button
+                  key={photo.id}
+                  type="button"
+                  onClick={() => toggleImageSelection(refId)}
+                  className={`relative flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
+                    selectedRefs.includes(refId)
+                      ? "border-[#d4af37]"
+                      : "border-[#333]"
+                  }`}
+                >
+                  <img
+                    src={photo.url}
+                    alt={photo.name}
+                    className="w-full h-full object-cover"
+                  />
+                  {selectedRefs.includes(refId) && (
+                    <div className="absolute top-0 right-0 bg-[#d4af37] text-black text-xs w-5 h-5 flex items-center justify-center rounded-bl">
+                      {selectedRefs.indexOf(refId) + 1}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
