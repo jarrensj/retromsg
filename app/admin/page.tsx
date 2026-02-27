@@ -296,7 +296,10 @@ export default function AdminPage() {
         return;
       }
 
-      setPresetPromptsMessage(`Saved custom prompt for "${presets.find((p) => p.id === presetId)?.name || presetId}"`);
+      const presetName = presets.find((p) => p.id === presetId)?.name
+        || presetPhotos.find((p) => p.key === presetId)?.name
+        || presetId;
+      setPresetPromptsMessage(`Saved custom prompt for "${presetName}"`);
     } catch {
       setPresetPromptsMessage("Error: Something went wrong");
     } finally {
@@ -635,12 +638,28 @@ export default function AdminPage() {
 
           {/* Photos Grid */}
           <div className="card p-6">
-            <h2 className="text-xl text-[#d4af37] mb-4">
+            <h2 className="text-xl text-[#d4af37] mb-2">
               Preset Photos
               <span className="text-sm text-[#888] ml-2">
                 ({presetPhotos.length})
               </span>
             </h2>
+            <p className="text-[#888] text-sm mb-4">
+              Each photo can have a custom prompt that is appended when a user selects it as a reference image.
+            </p>
+
+            {presetPromptsMessage && (
+              <div
+                className={`mb-4 p-3 rounded text-sm ${
+                  presetPromptsMessage.startsWith("Error")
+                    ? "bg-red-400/10 text-red-400"
+                    : "bg-green-400/10 text-green-400"
+                }`}
+              >
+                {presetPromptsMessage}
+              </div>
+            )}
+
             {photosLoading ? (
               <p className="text-[#666]">Loading photos...</p>
             ) : presetPhotos.length === 0 ? (
@@ -649,40 +668,63 @@ export default function AdminPage() {
                 available as reference images on the generate form.
               </p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="space-y-4">
                 {presetPhotos.map((photo) => (
                   <div
                     key={photo.key}
-                    className="border border-[#333] rounded overflow-hidden group"
+                    className="border border-[#333] rounded p-4 flex gap-4"
                   >
-                    <div className="aspect-square relative">
+                    <div className="flex-shrink-0 w-24 h-24 rounded overflow-hidden">
                       <img
                         src={photo.url}
                         alt={photo.name}
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="p-2">
-                      <p
-                        className="text-xs text-[#ededed] truncate"
-                        title={photo.name}
-                      >
-                        {photo.name}
-                      </p>
-                      <p className="text-xs text-[#666]">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p
+                          className="text-sm text-[#ededed] truncate"
+                          title={photo.name}
+                        >
+                          {photo.name}
+                        </p>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <button
+                            onClick={() => handleSavePresetPrompt(photo.key)}
+                            disabled={presetPromptsSaving === photo.key}
+                            className="text-sm px-3 py-1 bg-[#d4af37] text-black rounded hover:bg-[#c4a030] transition-colors disabled:opacity-50"
+                          >
+                            {presetPromptsSaving === photo.key ? "Saving..." : "Save Prompt"}
+                          </button>
+                          <button
+                            onClick={() => handleDeletePhoto(photo.key)}
+                            disabled={deletingPhotoKey === photo.key}
+                            className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50"
+                          >
+                            {deletingPhotoKey === photo.key
+                              ? "Deleting..."
+                              : "Delete"}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-[#666] mb-2">
                         {photo.size > 1024 * 1024
                           ? `${(photo.size / (1024 * 1024)).toFixed(1)}MB`
                           : `${Math.round(photo.size / 1024)}KB`}
                       </p>
-                      <button
-                        onClick={() => handleDeletePhoto(photo.key)}
-                        disabled={deletingPhotoKey === photo.key}
-                        className="text-red-400 hover:text-red-300 text-xs mt-1 disabled:opacity-50"
-                      >
-                        {deletingPhotoKey === photo.key
-                          ? "Deleting..."
-                          : "Delete"}
-                      </button>
+                      <textarea
+                        value={presetCustomPrompts[photo.key] || ""}
+                        onChange={(e) =>
+                          setPresetCustomPrompts((prev) => ({
+                            ...prev,
+                            [photo.key]: e.target.value,
+                          }))
+                        }
+                        rows={2}
+                        className="w-full p-2 resize-none text-sm"
+                        placeholder="Custom prompt to append when this photo is selected..."
+                      />
                     </div>
                   </div>
                 ))}

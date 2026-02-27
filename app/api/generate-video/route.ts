@@ -53,10 +53,23 @@ export async function POST(request: NextRequest) {
     const defaultPrompts = await getDefaultPrompts();
 
     // Fetch custom prompt for the selected preset (if any)
-    let presetCustomPrompt = "";
+    const customPromptParts: string[] = [];
     if (presetId && typeof presetId === "string") {
-      presetCustomPrompt = (await getPresetCustomPrompt(presetId)) || "";
+      const p = await getPresetCustomPrompt(presetId);
+      if (p) customPromptParts.push(p);
     }
+
+    // Check reference images for preset photo custom prompts
+    const refs = Array.isArray(referenceImages) ? referenceImages : [];
+    for (const ref of refs) {
+      if (typeof ref === "string" && ref.startsWith("s3:presets/")) {
+        const s3Key = ref.slice(3); // remove "s3:" prefix
+        const p = await getPresetCustomPrompt(s3Key);
+        if (p) customPromptParts.push(p);
+      }
+    }
+
+    const customSuffix = customPromptParts.join(" ");
 
     // Build the request for Veo API
     interface VeoInstance {
@@ -68,13 +81,10 @@ export async function POST(request: NextRequest) {
     }
 
     const instance: VeoInstance = {
-      prompt: presetCustomPrompt
-        ? `${defaultPrompts.video} ${prompt} ${presetCustomPrompt}`
+      prompt: customSuffix
+        ? `${defaultPrompts.video} ${prompt} ${customSuffix}`
         : `${defaultPrompts.video} ${prompt}`,
     };
-
-    // Check if reference image is provided for image-to-video (use first image only)
-    const refs = Array.isArray(referenceImages) ? referenceImages : [];
     const referenceImage = refs[0];
     if (referenceImage) {
       try {

@@ -48,21 +48,32 @@ export async function POST(request: NextRequest) {
     const defaultPrompts = await getDefaultPrompts();
 
     // Fetch custom prompt for the selected preset (if any)
-    let presetCustomPrompt = "";
+    const customPromptParts: string[] = [];
     if (presetId && typeof presetId === "string") {
-      presetCustomPrompt = (await getPresetCustomPrompt(presetId)) || "";
+      const p = await getPresetCustomPrompt(presetId);
+      if (p) customPromptParts.push(p);
     }
 
-    // Enhance prompt with vintage film effects and preset custom prompt
-    const vintagePrompt = presetCustomPrompt
-      ? `${defaultPrompts.image} ${prompt} ${presetCustomPrompt}`
+    // Check reference images for preset photo custom prompts
+    const refs = Array.isArray(referenceImages) ? referenceImages : [];
+    for (const ref of refs) {
+      if (typeof ref === "string" && ref.startsWith("s3:presets/")) {
+        const s3Key = ref.slice(3); // remove "s3:" prefix
+        const p = await getPresetCustomPrompt(s3Key);
+        if (p) customPromptParts.push(p);
+      }
+    }
+
+    // Enhance prompt with vintage film effects and custom prompts
+    const customSuffix = customPromptParts.join(" ");
+    const vintagePrompt = customSuffix
+      ? `${defaultPrompts.image} ${prompt} ${customSuffix}`
       : `${defaultPrompts.image} ${prompt}`;
 
     // Build the parts array for Gemini
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
 
     // If reference images provided, include them
-    const refs = Array.isArray(referenceImages) ? referenceImages : [];
     if (refs.length > 0) {
       for (const refImage of refs) {
         try {
