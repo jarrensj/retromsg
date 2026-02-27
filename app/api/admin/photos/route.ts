@@ -43,7 +43,7 @@ export async function GET() {
   }
 }
 
-// POST: Upload a new preset photo
+// POST: Upload one or more preset photos
 export async function POST(request: NextRequest) {
   try {
     const { userId: clerkId } = await auth();
@@ -59,60 +59,83 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+
+    // Support both "files" (multiple) and "file" (single, backward compat)
+    const files = formData.getAll("files") as File[];
+    const singleFile = formData.get("file") as File | null;
+    if (singleFile && files.length === 0) {
+      files.push(singleFile);
+    }
     const name = formData.get("name") as string | null;
 
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (files.length === 0) {
+      return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
-    // Validate file type
     const allowedTypes = [
       "image/jpeg",
       "image/png",
       "image/gif",
       "image/webp",
     ];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: "Invalid file type. Allowed: JPEG, PNG, GIF, WebP" },
-        { status: 400 }
-      );
+
+    // Validate all files first
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        return NextResponse.json(
+          {
+            error: `Invalid file type for "${file.name}". Allowed: JPEG, PNG, GIF, WebP`,
+          },
+          { status: 400 }
+        );
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: `File "${file.name}" is too large. Maximum size is 10MB` },
+          { status: 400 }
+        );
+      }
     }
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: "File too large. Maximum size is 10MB" },
-        { status: 400 }
-      );
+    // Upload all files
+    const uploaded: { key: string; name: string; url: string; size: number }[] =
+      [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const buffer = Buffer.from(await file.arrayBuffer());
+
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      // Use custom name only when uploading a single file
+      const baseName =
+        files.length === 1 && name
+          ? name
+          : file.name.replace(/\.[^.]+$/, "");
+      const safeName = baseName
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+      const timestamp = Date.now() + i; // offset to ensure unique timestamps
+      const filename = `${safeName}-${timestamp}.${ext}`;
+
+      const key = await uploadPresetPhoto(filename, buffer, file.type);
+
+      await logAuditAction({
+        action: "preset_photo_uploaded",
+        actorEmail: adminEmail,
+        details: { filename, key, size: file.size },
+      });
+
+      const url = await getPresignedUrl(key);
+      uploaded.push({ key, name: safeName, url, size: file.size });
     }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    // Generate a safe filename
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const safeName = (name || file.name.replace(/\.[^.]+$/, ""))
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-    const timestamp = Date.now();
-    const filename = `${safeName}-${timestamp}.${ext}`;
-
-    const key = await uploadPresetPhoto(filename, buffer, file.type);
-
-    await logAuditAction({
-      action: "preset_photo_uploaded",
-      actorEmail: adminEmail,
-      details: { filename, key, size: file.size },
-    });
-
-    const url = await getPresignedUrl(key);
 
     return NextResponse.json({
       success: true,
-      photo: { key, name: safeName, url, size: file.size },
+      photos: uploaded,
+      // Backward compat: include single photo field when only one file
+      ...(uploaded.length === 1 && { photo: uploaded[0] }),
     });
   } catch (error) {
     console.error("Upload photo error:", error);

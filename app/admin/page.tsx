@@ -250,10 +250,10 @@ export default function AdminPage() {
   async function handlePhotoUpload(e: React.FormEvent) {
     e.preventDefault();
     const fileInput = fileInputRef.current;
-    const file = fileInput?.files?.[0];
+    const files = fileInput?.files;
 
-    if (!file) {
-      setPhotoMessage("Error: Please select a file");
+    if (!files || files.length === 0) {
+      setPhotoMessage("Error: Please select at least one file");
       return;
     }
 
@@ -262,8 +262,10 @@ export default function AdminPage() {
 
     try {
       const formData = new FormData();
-      formData.append("file", file);
-      if (photoName.trim()) {
+      for (let i = 0; i < files.length; i++) {
+        formData.append("files", files[i]);
+      }
+      if (files.length === 1 && photoName.trim()) {
         formData.append("name", photoName.trim());
       }
 
@@ -279,7 +281,12 @@ export default function AdminPage() {
         return;
       }
 
-      setPhotoMessage("Photo uploaded successfully!");
+      const count = data.photos?.length || 1;
+      setPhotoMessage(
+        count === 1
+          ? "Photo uploaded successfully!"
+          : `${count} photos uploaded successfully!`
+      );
       setPhotoName("");
       if (fileInput) fileInput.value = "";
       setPhotosRefreshKey((k) => k + 1);
@@ -520,14 +527,14 @@ export default function AdminPage() {
         <>
           {/* Upload Form */}
           <div className="card p-6 mb-6">
-            <h2 className="text-xl text-[#d4af37] mb-4">Upload Preset Photo</h2>
+            <h2 className="text-xl text-[#d4af37] mb-4">Upload Preset Photos</h2>
             <p className="text-[#888] text-sm mb-4">
-              Upload images that users can select as reference presets on the generate form.
+              Upload images that users can select as reference presets on the generate form. You can select multiple images at once.
             </p>
             <form onSubmit={handlePhotoUpload} className="space-y-4">
               <div>
                 <label className="block text-sm text-[#888] mb-2">
-                  Display Name (optional)
+                  Display Name (optional, single file only)
                 </label>
                 <input
                   type="text"
@@ -539,17 +546,18 @@ export default function AdminPage() {
               </div>
               <div>
                 <label className="block text-sm text-[#888] mb-2">
-                  Image File
+                  Image Files
                 </label>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/gif,image/webp"
+                  multiple
                   className="w-full max-w-md p-3 text-[#ededed] file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-[#333] file:text-[#ededed] hover:file:bg-[#444]"
                   required
                 />
                 <p className="text-xs text-[#666] mt-1">
-                  JPEG, PNG, GIF, or WebP. Max 10MB.
+                  JPEG, PNG, GIF, or WebP. Max 10MB each. Select multiple files at once.
                 </p>
               </div>
               <div className="flex items-center gap-4">
@@ -558,7 +566,7 @@ export default function AdminPage() {
                   disabled={photoUploading}
                   className="btn-primary px-6"
                 >
-                  {photoUploading ? "Uploading..." : "Upload Photo"}
+                  {photoUploading ? "Uploading..." : "Upload Photos"}
                 </button>
                 {photoMessage && (
                   <p
