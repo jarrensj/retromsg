@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { readFile } from "fs/promises";
 import path from "path";
-import { getOrCreateUser, saveGeneration, deductCredits, getDefaultPrompts } from "@/lib/supabase";
+import { getOrCreateUser, saveGeneration, deductCredits, getDefaultPrompts, getPresetCustomPrompt } from "@/lib/supabase";
 import { s3, BUCKET, getS3Object } from "@/lib/s3";
 import { CREDIT_COSTS } from "@/lib/stripe";
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     const user = await getOrCreateUser(clerkId);
 
-    const { prompt, referenceImages, demoPassword } = await request.json();
+    const { prompt, referenceImages, demoPassword, presetId } = await request.json();
 
     // Verify demo password if set
     if (DEMO_PASSWORD && demoPassword !== DEMO_PASSWORD) {
@@ -52,6 +52,12 @@ export async function POST(request: NextRequest) {
     // Get default prompt from database
     const defaultPrompts = await getDefaultPrompts();
 
+    // Fetch custom prompt for the selected preset (if any)
+    let presetCustomPrompt = "";
+    if (presetId && typeof presetId === "string") {
+      presetCustomPrompt = (await getPresetCustomPrompt(presetId)) || "";
+    }
+
     // Build the request for Veo API
     interface VeoInstance {
       prompt: string;
@@ -62,7 +68,9 @@ export async function POST(request: NextRequest) {
     }
 
     const instance: VeoInstance = {
-      prompt: `${defaultPrompts.video} ${prompt}`,
+      prompt: presetCustomPrompt
+        ? `${defaultPrompts.video} ${prompt} ${presetCustomPrompt}`
+        : `${defaultPrompts.video} ${prompt}`,
     };
 
     // Check if reference image is provided for image-to-video (use first image only)

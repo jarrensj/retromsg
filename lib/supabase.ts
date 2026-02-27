@@ -424,3 +424,54 @@ export async function getDefaultPrompts(): Promise<{
 
   return prompts;
 }
+
+// ============ Preset Custom Prompt Functions ============
+
+const PRESET_PROMPT_PREFIX = "preset_custom_prompt:";
+
+// Get custom prompt for a specific preset
+export async function getPresetCustomPrompt(
+  presetId: string
+): Promise<string | null> {
+  return getSetting(`${PRESET_PROMPT_PREFIX}${presetId}`);
+}
+
+// Get all preset custom prompts
+export async function getAllPresetCustomPrompts(): Promise<
+  Record<string, string>
+> {
+  const { data } = await supabaseAdmin
+    .from("settings")
+    .select("key, value")
+    .like("key", `${PRESET_PROMPT_PREFIX}%`);
+
+  const prompts: Record<string, string> = {};
+  if (data) {
+    for (const setting of data) {
+      const presetId = setting.key.slice(PRESET_PROMPT_PREFIX.length);
+      prompts[presetId] = setting.value;
+    }
+  }
+  return prompts;
+}
+
+// Update custom prompt for a preset
+export async function updatePresetCustomPrompt(
+  presetId: string,
+  value: string,
+  updatedBy: string
+) {
+  await updateSetting(`${PRESET_PROMPT_PREFIX}${presetId}`, value, updatedBy);
+}
+
+// Delete custom prompt for a preset (set to empty)
+export async function deletePresetCustomPrompt(presetId: string) {
+  const { error } = await supabaseAdmin
+    .from("settings")
+    .delete()
+    .eq("key", `${PRESET_PROMPT_PREFIX}${presetId}`);
+
+  if (error) {
+    throw new Error(`Failed to delete preset custom prompt: ${error.message}`);
+  }
+}

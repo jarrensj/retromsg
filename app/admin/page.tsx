@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import GenerationsGallery, { Generation } from "@/components/GenerationsGallery";
+import { presets } from "@/lib/presets";
 
 type PresetPhoto = {
   key: string;
@@ -48,7 +49,7 @@ type CreditPurchase = {
   } | null;
 };
 
-type Tab = "gallery" | "photos" | "purchases" | "admins" | "audit" | "settings";
+type Tab = "gallery" | "photos" | "presets" | "purchases" | "admins" | "audit" | "settings";
 
 export default function AdminPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -83,6 +84,12 @@ export default function AdminPage() {
   const [deletingPhotoKey, setDeletingPhotoKey] = useState<string | null>(null);
   const [photosRefreshKey, setPhotosRefreshKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Presets tab state
+  const [presetCustomPrompts, setPresetCustomPrompts] = useState<Record<string, string>>({});
+  const [presetPromptsLoading, setPresetPromptsLoading] = useState(false);
+  const [presetPromptsSaving, setPresetPromptsSaving] = useState<string | null>(null);
+  const [presetPromptsMessage, setPresetPromptsMessage] = useState("");
 
   // Check admin status
   useEffect(() => {
@@ -246,6 +253,56 @@ export default function AdminPage() {
       fetchPhotos();
     }
   }, [isAdmin, photosRefreshKey]);
+
+  // Fetch preset custom prompts
+  useEffect(() => {
+    async function fetchPresetPrompts() {
+      setPresetPromptsLoading(true);
+      try {
+        const res = await fetch("/api/admin/preset-prompts");
+        if (res.ok) {
+          const data = await res.json();
+          setPresetCustomPrompts(data.prompts || {});
+        }
+      } catch {
+        console.error("Failed to fetch preset prompts");
+      } finally {
+        setPresetPromptsLoading(false);
+      }
+    }
+
+    if (isAdmin) {
+      fetchPresetPrompts();
+    }
+  }, [isAdmin]);
+
+  async function handleSavePresetPrompt(presetId: string) {
+    setPresetPromptsSaving(presetId);
+    setPresetPromptsMessage("");
+
+    try {
+      const res = await fetch("/api/admin/preset-prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          presetId,
+          customPrompt: presetCustomPrompts[presetId] || "",
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setPresetPromptsMessage(`Error: ${data.error || "Failed to save"}`);
+        return;
+      }
+
+      setPresetPromptsMessage(`Saved custom prompt for "${presets.find((p) => p.id === presetId)?.name || presetId}"`);
+    } catch {
+      setPresetPromptsMessage("Error: Something went wrong");
+    } finally {
+      setPresetPromptsSaving(null);
+    }
+  }
 
   async function handlePhotoUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -450,6 +507,7 @@ export default function AdminPage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "gallery", label: "Gallery" },
     { id: "photos", label: "Photos" },
+    { id: "presets", label: "Presets" },
     { id: "purchases", label: "Purchases" },
     { id: "admins", label: "Admins" },
     { id: "audit", label: "Audit Trail" },
@@ -632,6 +690,70 @@ export default function AdminPage() {
             )}
           </div>
         </>
+      )}
+
+      {/* Presets Tab */}
+      {activeTab === "presets" && (
+        <div className="card p-6">
+          <h2 className="text-xl text-[#d4af37] mb-2">Preset Custom Prompts</h2>
+          <p className="text-[#888] text-sm mb-6">
+            Add a custom prompt that will be appended to each preset when used for generation.
+            Leave blank to use the preset as-is.
+          </p>
+
+          {presetPromptsMessage && (
+            <div
+              className={`mb-4 p-3 rounded text-sm ${
+                presetPromptsMessage.startsWith("Error")
+                  ? "bg-red-400/10 text-red-400"
+                  : "bg-green-400/10 text-green-400"
+              }`}
+            >
+              {presetPromptsMessage}
+            </div>
+          )}
+
+          {presetPromptsLoading ? (
+            <p className="text-[#666]">Loading preset prompts...</p>
+          ) : (
+            <div className="space-y-6">
+              {presets.map((preset) => (
+                <div
+                  key={preset.id}
+                  className="border border-[#333] rounded p-4"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-[#ededed] font-medium">
+                      {preset.name}
+                    </h3>
+                    <button
+                      onClick={() => handleSavePresetPrompt(preset.id)}
+                      disabled={presetPromptsSaving === preset.id}
+                      className="text-sm px-4 py-1 bg-[#d4af37] text-black rounded hover:bg-[#c4a030] transition-colors disabled:opacity-50"
+                    >
+                      {presetPromptsSaving === preset.id ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-[#666] mb-3 line-clamp-2">
+                    Preset prompt: {preset.prompt}
+                  </p>
+                  <textarea
+                    value={presetCustomPrompts[preset.id] || ""}
+                    onChange={(e) =>
+                      setPresetCustomPrompts((prev) => ({
+                        ...prev,
+                        [preset.id]: e.target.value,
+                      }))
+                    }
+                    rows={2}
+                    className="w-full p-3 resize-none text-sm"
+                    placeholder="Enter custom prompt to append when this preset is used..."
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Purchases Tab */}
