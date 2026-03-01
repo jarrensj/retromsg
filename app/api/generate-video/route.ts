@@ -59,13 +59,20 @@ export async function POST(request: NextRequest) {
       if (p) customPromptParts.push(p);
     }
 
-    // Check reference images for preset photo custom prompts
+    // Check reference images for custom prompts (S3 preset photos and hardcoded reference images)
     const refs = Array.isArray(referenceImages) ? referenceImages : [];
     for (const ref of refs) {
-      if (typeof ref === "string" && ref.startsWith("s3:presets/")) {
-        const s3Key = ref.slice(3); // remove "s3:" prefix
-        const p = await getPresetCustomPrompt(s3Key);
-        if (p) customPromptParts.push(p);
+      if (typeof ref === "string") {
+        let customPromptKey: string | null = null;
+        if (ref.startsWith("s3:presets/")) {
+          customPromptKey = ref.slice(3); // remove "s3:" prefix
+        } else if (ref.startsWith("/")) {
+          customPromptKey = ref; // hardcoded reference image src path
+        }
+        if (customPromptKey) {
+          const p = await getPresetCustomPrompt(customPromptKey);
+          if (p) customPromptParts.push(p);
+        }
       }
     }
 
@@ -269,7 +276,9 @@ export async function POST(request: NextRequest) {
     await saveGeneration({
       userId: user.id,
       prompt,
-      basePrompt: defaultPrompts.video,
+      basePrompt: customSuffix
+        ? `${defaultPrompts.video} [custom: ${customSuffix}]`
+        : defaultPrompts.video,
       sourceUrl: referenceImage || undefined,
       resultUrl: key,
       type: "video",
