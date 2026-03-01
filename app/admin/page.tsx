@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import GenerationsGallery, { Generation } from "@/components/GenerationsGallery";
 import { presets } from "@/lib/presets";
+import { referenceImages } from "@/lib/reference-images";
 
 type PresetPhoto = {
   key: string;
@@ -298,6 +299,7 @@ export default function AdminPage() {
 
       const presetName = presets.find((p) => p.id === presetId)?.name
         || presetPhotos.find((p) => p.key === presetId)?.name
+        || referenceImages.find((p) => p.src === presetId)?.name
         || presetId;
       setPresetPromptsMessage(`Saved custom prompt for "${presetName}"`);
     } catch {
@@ -758,6 +760,7 @@ export default function AdminPage() {
           {presetPromptsLoading ? (
             <p className="text-[#666]">Loading preset prompts...</p>
           ) : (
+            <>
             <div className="space-y-6">
               {presets.map((preset) => (
                 <div
@@ -794,6 +797,53 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+
+            {/* Reference Images Custom Prompts */}
+            <h2 className="text-xl text-[#d4af37] mt-8 mb-2">Reference Image Custom Prompts</h2>
+            <p className="text-[#888] text-sm mb-6">
+              Add a custom prompt that will be appended when a user selects one of these reference images.
+            </p>
+            <div className="space-y-4">
+              {referenceImages.map((img) => (
+                <div
+                  key={img.id}
+                  className="border border-[#333] rounded p-4 flex gap-4"
+                >
+                  <div className="flex-shrink-0 w-24 h-24 rounded overflow-hidden">
+                    <img
+                      src={img.src}
+                      alt={img.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-[#ededed] font-medium">{img.name}</h3>
+                      <button
+                        onClick={() => handleSavePresetPrompt(img.src)}
+                        disabled={presetPromptsSaving === img.src}
+                        className="text-sm px-4 py-1 bg-[#d4af37] text-black rounded hover:bg-[#c4a030] transition-colors disabled:opacity-50"
+                      >
+                        {presetPromptsSaving === img.src ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                    <textarea
+                      value={presetCustomPrompts[img.src] || ""}
+                      onChange={(e) =>
+                        setPresetCustomPrompts((prev) => ({
+                          ...prev,
+                          [img.src]: e.target.value,
+                        }))
+                      }
+                      rows={2}
+                      className="w-full p-2 resize-none text-sm"
+                      placeholder="Custom prompt to append when this image is selected..."
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </div>
       )}
