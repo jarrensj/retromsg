@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import GenerationsGallery, { Generation } from "@/components/GenerationsGallery";
+import { presets } from "@/lib/presets";
+import { referenceImages } from "@/lib/reference-images";
 
 type PresetPhoto = {
   key: string;
@@ -48,7 +50,7 @@ type CreditPurchase = {
   } | null;
 };
 
-type Tab = "gallery" | "photos" | "purchases" | "admins" | "audit" | "settings";
+type Tab = "gallery" | "photos" | "presets" | "purchases" | "admins" | "audit" | "settings";
 
 export default function AdminPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -83,6 +85,12 @@ export default function AdminPage() {
   const [deletingPhotoKey, setDeletingPhotoKey] = useState<string | null>(null);
   const [photosRefreshKey, setPhotosRefreshKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Presets tab state
+  const [presetCustomPrompts, setPresetCustomPrompts] = useState<Record<string, string>>({});
+  const [presetPromptsLoading, setPresetPromptsLoading] = useState(false);
+  const [presetPromptsSaving, setPresetPromptsSaving] = useState<string | null>(null);
+  const [presetPromptsMessage, setPresetPromptsMessage] = useState("");
 
   // Check admin status
   useEffect(() => {
@@ -246,6 +254,60 @@ export default function AdminPage() {
       fetchPhotos();
     }
   }, [isAdmin, photosRefreshKey]);
+
+  // Fetch preset custom prompts
+  useEffect(() => {
+    async function fetchPresetPrompts() {
+      setPresetPromptsLoading(true);
+      try {
+        const res = await fetch("/api/admin/preset-prompts");
+        if (res.ok) {
+          const data = await res.json();
+          setPresetCustomPrompts(data.prompts || {});
+        }
+      } catch {
+        console.error("Failed to fetch preset prompts");
+      } finally {
+        setPresetPromptsLoading(false);
+      }
+    }
+
+    if (isAdmin) {
+      fetchPresetPrompts();
+    }
+  }, [isAdmin]);
+
+  async function handleSavePresetPrompt(presetId: string) {
+    setPresetPromptsSaving(presetId);
+    setPresetPromptsMessage("");
+
+    try {
+      const res = await fetch("/api/admin/preset-prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          presetId,
+          customPrompt: presetCustomPrompts[presetId] || "",
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setPresetPromptsMessage(`Error: ${data.error || "Failed to save"}`);
+        return;
+      }
+
+      const presetName = presets.find((p) => p.id === presetId)?.name
+        || presetPhotos.find((p) => p.key === presetId)?.name
+        || referenceImages.find((p) => p.src === presetId)?.name
+        || presetId;
+      setPresetPromptsMessage(`Saved custom prompt for "${presetName}"`);
+    } catch {
+      setPresetPromptsMessage("Error: Something went wrong");
+    } finally {
+      setPresetPromptsSaving(null);
+    }
+  }
 
   async function handlePhotoUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -457,6 +519,7 @@ export default function AdminPage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "gallery", label: "Gallery" },
     { id: "photos", label: "Photos" },
+    { id: "presets", label: "Presets" },
     { id: "purchases", label: "Purchases" },
     { id: "admins", label: "Admins" },
     { id: "audit", label: "Audit Trail" },
@@ -585,12 +648,28 @@ export default function AdminPage() {
 
           {/* Photos Grid */}
           <div className="card p-6">
-            <h2 className="text-xl text-[#d4af37] mb-4">
+            <h2 className="text-xl text-[#d4af37] mb-2">
               Preset Photos
               <span className="text-sm text-[#888] ml-2">
                 ({presetPhotos.length})
               </span>
             </h2>
+            <p className="text-[#888] text-sm mb-4">
+              Each photo can have a custom prompt that is appended when a user selects it as a reference image.
+            </p>
+
+            {presetPromptsMessage && (
+              <div
+                className={`mb-4 p-3 rounded text-sm ${
+                  presetPromptsMessage.startsWith("Error")
+                    ? "bg-red-400/10 text-red-400"
+                    : "bg-green-400/10 text-green-400"
+                }`}
+              >
+                {presetPromptsMessage}
+              </div>
+            )}
+
             {photosLoading ? (
               <p className="text-[#666]">Loading photos...</p>
             ) : presetPhotos.length === 0 ? (
@@ -599,40 +678,63 @@ export default function AdminPage() {
                 available as reference images on the generate form.
               </p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="space-y-4">
                 {presetPhotos.map((photo) => (
                   <div
                     key={photo.key}
-                    className="border border-[#333] rounded overflow-hidden group"
+                    className="border border-[#333] rounded p-4 flex gap-4"
                   >
-                    <div className="aspect-square relative">
+                    <div className="flex-shrink-0 w-24 h-24 rounded overflow-hidden">
                       <img
                         src={photo.url}
                         alt={photo.name}
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="p-2">
-                      <p
-                        className="text-xs text-[#ededed] truncate"
-                        title={photo.name}
-                      >
-                        {photo.name}
-                      </p>
-                      <p className="text-xs text-[#666]">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p
+                          className="text-sm text-[#ededed] truncate"
+                          title={photo.name}
+                        >
+                          {photo.name}
+                        </p>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <button
+                            onClick={() => handleSavePresetPrompt(photo.key)}
+                            disabled={presetPromptsSaving === photo.key}
+                            className="text-sm px-3 py-1 bg-[#d4af37] text-black rounded hover:bg-[#c4a030] transition-colors disabled:opacity-50"
+                          >
+                            {presetPromptsSaving === photo.key ? "Saving..." : "Save Prompt"}
+                          </button>
+                          <button
+                            onClick={() => handleDeletePhoto(photo.key)}
+                            disabled={deletingPhotoKey === photo.key}
+                            className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50"
+                          >
+                            {deletingPhotoKey === photo.key
+                              ? "Deleting..."
+                              : "Delete"}
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-[#666] mb-2">
                         {photo.size > 1024 * 1024
                           ? `${(photo.size / (1024 * 1024)).toFixed(1)}MB`
                           : `${Math.round(photo.size / 1024)}KB`}
                       </p>
-                      <button
-                        onClick={() => handleDeletePhoto(photo.key)}
-                        disabled={deletingPhotoKey === photo.key}
-                        className="text-red-400 hover:text-red-300 text-xs mt-1 disabled:opacity-50"
-                      >
-                        {deletingPhotoKey === photo.key
-                          ? "Deleting..."
-                          : "Delete"}
-                      </button>
+                      <textarea
+                        value={presetCustomPrompts[photo.key] || ""}
+                        onChange={(e) =>
+                          setPresetCustomPrompts((prev) => ({
+                            ...prev,
+                            [photo.key]: e.target.value,
+                          }))
+                        }
+                        rows={2}
+                        className="w-full p-2 resize-none text-sm"
+                        placeholder="Custom prompt to append when this photo is selected..."
+                      />
                     </div>
                   </div>
                 ))}
@@ -640,6 +742,118 @@ export default function AdminPage() {
             )}
           </div>
         </>
+      )}
+
+      {/* Presets Tab */}
+      {activeTab === "presets" && (
+        <div className="card p-6">
+          <h2 className="text-xl text-[#d4af37] mb-2">Preset Custom Prompts</h2>
+          <p className="text-[#888] text-sm mb-6">
+            Add a custom prompt that will be appended to each preset when used for generation.
+            Leave blank to use the preset as-is.
+          </p>
+
+          {presetPromptsMessage && (
+            <div
+              className={`mb-4 p-3 rounded text-sm ${
+                presetPromptsMessage.startsWith("Error")
+                  ? "bg-red-400/10 text-red-400"
+                  : "bg-green-400/10 text-green-400"
+              }`}
+            >
+              {presetPromptsMessage}
+            </div>
+          )}
+
+          {presetPromptsLoading ? (
+            <p className="text-[#666]">Loading preset prompts...</p>
+          ) : (
+            <>
+            <div className="space-y-6">
+              {presets.map((preset) => (
+                <div
+                  key={preset.id}
+                  className="border border-[#333] rounded p-4"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-[#ededed] font-medium">
+                      {preset.name}
+                    </h3>
+                    <button
+                      onClick={() => handleSavePresetPrompt(preset.id)}
+                      disabled={presetPromptsSaving === preset.id}
+                      className="text-sm px-4 py-1 bg-[#d4af37] text-black rounded hover:bg-[#c4a030] transition-colors disabled:opacity-50"
+                    >
+                      {presetPromptsSaving === preset.id ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-[#666] mb-3 line-clamp-2">
+                    Preset prompt: {preset.prompt}
+                  </p>
+                  <textarea
+                    value={presetCustomPrompts[preset.id] || ""}
+                    onChange={(e) =>
+                      setPresetCustomPrompts((prev) => ({
+                        ...prev,
+                        [preset.id]: e.target.value,
+                      }))
+                    }
+                    rows={2}
+                    className="w-full p-3 resize-none text-sm"
+                    placeholder="Enter custom prompt to append when this preset is used..."
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Reference Images Custom Prompts */}
+            <h2 className="text-xl text-[#d4af37] mt-8 mb-2">Reference Image Custom Prompts</h2>
+            <p className="text-[#888] text-sm mb-6">
+              Add a custom prompt that will be appended when a user selects one of these reference images.
+            </p>
+            <div className="space-y-4">
+              {referenceImages.map((img) => (
+                <div
+                  key={img.id}
+                  className="border border-[#333] rounded p-4 flex gap-4"
+                >
+                  <div className="flex-shrink-0 w-24 h-24 rounded overflow-hidden">
+                    <img
+                      src={img.src}
+                      alt={img.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-[#ededed] font-medium">{img.name}</h3>
+                      <button
+                        onClick={() => handleSavePresetPrompt(img.src)}
+                        disabled={presetPromptsSaving === img.src}
+                        className="text-sm px-4 py-1 bg-[#d4af37] text-black rounded hover:bg-[#c4a030] transition-colors disabled:opacity-50"
+                      >
+                        {presetPromptsSaving === img.src ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                    <textarea
+                      value={presetCustomPrompts[img.src] || ""}
+                      onChange={(e) =>
+                        setPresetCustomPrompts((prev) => ({
+                          ...prev,
+                          [img.src]: e.target.value,
+                        }))
+                      }
+                      rows={2}
+                      className="w-full p-2 resize-none text-sm"
+                      placeholder="Custom prompt to append when this image is selected..."
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
+          )}
+        </div>
       )}
 
       {/* Purchases Tab */}

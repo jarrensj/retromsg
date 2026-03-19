@@ -22,6 +22,7 @@ const CREDIT_PACKAGES = [
 export default function Home() {
   const { isSignedIn } = useAuth();
   const [prompt, setPrompt] = useState("");
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [mode, setMode] = useState<"image" | "video">("image");
   const [selectedRefs, setSelectedRefs] = useState<string[]>([]);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
@@ -198,7 +199,7 @@ export default function Home() {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, referenceImages: selectedRefs, demoPassword }),
+        body: JSON.stringify({ prompt, referenceImages: selectedRefs, demoPassword, presetId: selectedPresetId }),
       });
 
       const data = await res.json();
@@ -638,7 +639,10 @@ export default function Home() {
         <select
           onChange={(e) => {
             const preset = presets.find((p) => p.id === e.target.value);
-            if (preset) setPrompt(preset.prompt);
+            if (preset) {
+              setPrompt(preset.prompt);
+              setSelectedPresetId(preset.id);
+            }
           }}
           className="w-full p-3 mb-4"
           disabled={loading}

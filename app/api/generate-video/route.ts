@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { readFile } from "fs/promises";
 import path from "path";
-import { getOrCreateUser, saveGeneration, deductCredits, getDefaultPrompts } from "@/lib/supabase";
+import { getOrCreateUser, saveGeneration, deductCredits, getDefaultPrompts, getPresetCustomPrompt } from "@/lib/supabase";
 import { s3, BUCKET, getS3Object } from "@/lib/s3";
 import { CREDIT_COSTS } from "@/lib/stripe";
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     const user = await getOrCreateUser(clerkId);
 
-    const { prompt, referenceImages, demoPassword } = await request.json();
+    const { prompt, referenceImages, demoPassword, presetId } = await request.json();
 
     // Verify demo password if set
     if (DEMO_PASSWORD && demoPassword !== DEMO_PASSWORD) {
@@ -52,6 +52,32 @@ export async function POST(request: NextRequest) {
     // Get default prompt from database
     const defaultPrompts = await getDefaultPrompts();
 
+    // Fetch custom prompt for the selected preset (if any)
+    const customPromptParts: string[] = [];
+    if (presetId && typeof presetId === "string") {
+      const p = await getPresetCustomPrompt(presetId);
+      if (p) customPromptParts.push(p);
+    }
+
+    // Check reference images for custom prompts (S3 preset photos and hardcoded reference images)
+    const refs = Array.isArray(referenceImages) ? referenceImages : [];
+    for (const ref of refs) {
+      if (typeof ref === "string") {
+        let customPromptKey: string | null = null;
+        if (ref.startsWith("s3:presets/")) {
+          customPromptKey = ref.slice(3); // remove "s3:" prefix
+        } else if (ref.startsWith("/")) {
+          customPromptKey = ref; // hardcoded reference image src path
+        }
+        if (customPromptKey) {
+          const p = await getPresetCustomPrompt(customPromptKey);
+          if (p) customPromptParts.push(p);
+        }
+      }
+    }
+
+    const customSuffix = customPromptParts.join(" ");
+
     // Build the request for Veo API
     interface VeoInstance {
       prompt: string;
@@ -62,11 +88,10 @@ export async function POST(request: NextRequest) {
     }
 
     const instance: VeoInstance = {
-      prompt: `${defaultPrompts.video} ${prompt}`,
+      prompt: customSuffix
+        ? `${defaultPrompts.video} ${prompt} ${customSuffix}`
+        : `${defaultPrompts.video} ${prompt}`,
     };
-
-    // Check if reference image is provided for image-to-video (use first image only)
-    const refs = Array.isArray(referenceImages) ? referenceImages : [];
     const referenceImage = refs[0];
     if (referenceImage) {
       try {
@@ -251,7 +276,9 @@ export async function POST(request: NextRequest) {
     await saveGeneration({
       userId: user.id,
       prompt,
-      basePrompt: defaultPrompts.video,
+      basePrompt: customSuffix
+        ? `${defaultPrompts.video} [custom: ${customSuffix}]`
+        : defaultPrompts.video,
       sourceUrl: referenceImage || undefined,
       resultUrl: key,
       type: "video",

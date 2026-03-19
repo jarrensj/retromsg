@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { readFile } from "fs/promises";
 import path from "path";
-import { getOrCreateUser, saveGeneration, deductCredits, getDefaultPrompts } from "@/lib/supabase";
+import { getOrCreateUser, saveGeneration, deductCredits, getDefaultPrompts, getPresetCustomPrompt } from "@/lib/supabase";
 import { s3, BUCKET, getS3Object } from "@/lib/s3";
 import { CREDIT_COSTS } from "@/lib/stripe";
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const user = await getOrCreateUser(clerkId);
 
-    const { prompt, referenceImages, demoPassword } = await request.json();
+    const { prompt, referenceImages, demoPassword, presetId } = await request.json();
 
     // Verify demo password if set
     if (DEMO_PASSWORD && demoPassword !== DEMO_PASSWORD) {
@@ -47,14 +47,40 @@ export async function POST(request: NextRequest) {
     // Get default prompt from database
     const defaultPrompts = await getDefaultPrompts();
 
-    // Enhance prompt with vintage film effects
-    const vintagePrompt = `${defaultPrompts.image} ${prompt}`;
+    // Fetch custom prompt for the selected preset (if any)
+    const customPromptParts: string[] = [];
+    if (presetId && typeof presetId === "string") {
+      const p = await getPresetCustomPrompt(presetId);
+      if (p) customPromptParts.push(p);
+    }
+
+    // Check reference images for custom prompts (S3 preset photos and hardcoded reference images)
+    const refs = Array.isArray(referenceImages) ? referenceImages : [];
+    for (const ref of refs) {
+      if (typeof ref === "string") {
+        let customPromptKey: string | null = null;
+        if (ref.startsWith("s3:presets/")) {
+          customPromptKey = ref.slice(3); // remove "s3:" prefix
+        } else if (ref.startsWith("/")) {
+          customPromptKey = ref; // hardcoded reference image src path
+        }
+        if (customPromptKey) {
+          const p = await getPresetCustomPrompt(customPromptKey);
+          if (p) customPromptParts.push(p);
+        }
+      }
+    }
+
+    // Enhance prompt with vintage film effects and custom prompts
+    const customSuffix = customPromptParts.join(" ");
+    const vintagePrompt = customSuffix
+      ? `${defaultPrompts.image} ${prompt} ${customSuffix}`
+      : `${defaultPrompts.image} ${prompt}`;
 
     // Build the parts array for Gemini
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
 
     // If reference images provided, include them
-    const refs = Array.isArray(referenceImages) ? referenceImages : [];
     if (refs.length > 0) {
       for (const refImage of refs) {
         try {
@@ -165,7 +191,9 @@ export async function POST(request: NextRequest) {
     await saveGeneration({
       userId: user.id,
       prompt,
-      basePrompt: defaultPrompts.image,
+      basePrompt: customSuffix
+        ? `${defaultPrompts.image} [custom: ${customSuffix}]`
+        : defaultPrompts.image,
       sourceUrl: refs.length > 0 ? refs[0] : undefined,
       referenceImages: refs.length > 0 ? refs : undefined,
       resultUrl: key,
